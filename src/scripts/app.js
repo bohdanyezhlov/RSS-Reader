@@ -1,5 +1,7 @@
 /* eslint-disable no-unused-vars */
 import * as yup from 'yup';
+import i18n from 'i18next';
+import resources from './locales/index.js';
 import watchedState from './watcher';
 
 const isUrlValid = (value) => new Promise((resolve, reject) => {
@@ -17,9 +19,18 @@ const schema = yup.object().shape({
     .test('valid-url', 'Invalid URL', isUrlValid),
 });
 
-// RSS уже существует, Ресурс не содержит валидный RSS, Ссылка должна быть валидным URL
-export default () => {
+export default async () => {
+  const defaultLanguage = 'ru';
+
+  const i18nInstance = i18n.createInstance();
+  await i18nInstance.init({
+    lng: defaultLanguage,
+    debug: false,
+    resources,
+  });
+
   const state = {
+    lng: defaultLanguage,
     urlForm: {
       urls: [],
       valid: null,
@@ -43,19 +54,19 @@ export default () => {
 
     if (state.urlForm.urls.includes(data.url)) {
       state.urlForm.valid = false;
-      watchedState(state, { elements }).urlForm.error = 'RSS уже существует';
+      watchedState(state, { elements }, i18nInstance).urlForm.error = 'alreadyExist';
       // console.log('RSS уже существует', state.urlForm);
     } else {
       schema.validate(data)
         .then((valid) => {
           state.urlForm.urls.push(data.url);
           state.urlForm.valid = true;
-          watchedState(state, { elements }).urlForm.error = '';
+          watchedState(state, { elements }, i18nInstance).urlForm.error = '';
           // console.log('Valid URL', state.urlForm, valid);
         })
         .catch((error) => {
           state.urlForm.valid = false;
-          watchedState(state, { elements }).urlForm.error = 'Ссылка должна быть валидным URL';
+          watchedState(state, { elements }, i18nInstance).urlForm.error = 'invalidUrl';
           // console.log('Ссылка должна быть валидным URL', state.urlForm, error);
         });
     }
