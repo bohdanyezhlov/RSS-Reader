@@ -1,5 +1,6 @@
 /* eslint-disable no-unused-vars */
 import * as yup from 'yup';
+import 'bootstrap';
 import i18n from 'i18next';
 import axios from 'axios';
 import { uniqueId } from 'lodash';
@@ -14,23 +15,28 @@ const schema = yup.object().shape({
 export default async () => {
   const defaultLanguage = 'ru';
 
-  const i18nInstance = i18n.createInstance();
-  await i18nInstance.init({ // => promise
-    lng: defaultLanguage,
-    debug: false,
-    resources,
-  });
-
   const state = {
     lng: defaultLanguage,
-    urlForm: {
+    rssForm: {
       urls: [],
       valid: null,
       error: null,
     },
     feeds: [],
     posts: [],
+    uiState: {
+      posts: {
+        visited: [],
+      },
+    },
   };
+
+  const i18nInstance = i18n.createInstance();
+  await i18nInstance.init({ // => promise ?
+    lng: defaultLanguage,
+    debug: false,
+    resources,
+  });
 
   const elements = {
     form: document.querySelector('form'),
@@ -39,6 +45,9 @@ export default async () => {
     feedback: document.querySelector('.feedback'),
     posts: document.querySelector('.posts'),
     feeds: document.querySelector('.feeds'),
+    modalHeader: document.querySelector('.modal-title'),
+    modalText: document.querySelector('.modal-body'),
+    modalLink: document.querySelector('.full-article'),
   };
 
   elements.form.addEventListener('submit', (e) => {
@@ -48,39 +57,41 @@ export default async () => {
       url: newUrl,
     };
 
-    if (state.urlForm.urls.includes(data.url)) { // => yup notoneof
-      state.urlForm.valid = false;
-      render(state, { elements }, i18nInstance).urlForm.error = 'alreadyExist';
-      state.urlForm.error = null;
-      // console.log('RSS уже существует', state.urlForm);
+    if (state.rssForm.urls.includes(data.url)) { // => yup notoneof
+      // console.log('RSS уже существует');
+      state.rssForm.error = 'alreadyExist';
+      render(state, { elements }, i18nInstance).rssForm.valid = false;
+      state.rssForm.valid = null; // reset
     } else {
       schema.validate(data)
         .then((valid) => {
           // console.log('Valid URL');
           const link = `https://allorigins.hexlet.app/get?disableCache=true&url=${encodeURIComponent(data.url)}`;
-          axios.get(link)
+          axios.get(link) // try catch?
             .then((response) => {
               const xmlDoc = parser(response.data.contents);
-              const rssItems = xmlDoc.getElementsByTagName('channel');
+              const rssItems = xmlDoc.getElementsByTagName('item');
               const getUniqueId = () => uniqueId();
 
               // Check if the RSS feed contains items (which indicates that it's a valid RSS feed)
               if (rssItems.length > 0) {
-                // renderFeeds
+                // console.log('Valid RSS feed');
+
+                // getFeed
                 const feed = {
-                  id: getUniqueId(), // 0 - feed, 1 - post ?
+                  id: getUniqueId(),
                   channelTitle: xmlDoc.querySelector('title').innerHTML,
                   channelDescription: xmlDoc.querySelector('description').innerHTML,
                 };
-                state.feeds.unshift(feed);
-                // renderPosts
+
+                // getPosts
                 const items = xmlDoc.querySelectorAll('item');
                 const postsItems = Array.from(items).map((item) => {
                   const itemTitle = item.querySelector('title').innerHTML;
                   const itemDescription = item.querySelector('description').innerHTML;
                   const itemLink = item.querySelector('link').innerHTML;
-                  const itemId = getUniqueId(); // 0 - feed, 1 - post ?
-                  // const feedId = state.feeds           sync feed => post ?
+                  const itemId = getUniqueId();
+                  // const feedId = connect feed => posts ?
                   return {
                     itemId,
                     itemTitle,
@@ -88,31 +99,34 @@ export default async () => {
                     itemLink,
                   };
                 });
+
+                state.feeds.unshift(feed);
                 state.posts.unshift(...postsItems);
-                state.urlForm.urls.push(data.url);
-                state.urlForm.valid = true;
-                render(state, { elements }, i18nInstance).urlForm.error = '';
-                state.urlForm.error = null;
-                // console.log('Valid RSS feed');
+                state.rssForm.urls.push(data.url);
+                state.rssForm.error = '';
+                render(state, { elements }, i18nInstance).rssForm.valid = true;
+                state.rssForm.valid = null;
+                // getUpdates ? state.rssForm.url // add setTimeout
+                // console.log(state.rssForm.urls);
               } else {
-                state.urlForm.valid = false;
-                render(state, { elements }, i18nInstance).urlForm.error = 'noValidRss';
-                state.urlForm.error = null;
                 // console.log('Invalid RSS feed');
+                state.rssForm.error = 'noValidRss';
+                render(state, { elements }, i18nInstance).rssForm.valid = false;
+                state.rssForm.valid = null;
               }
             })
             .catch((error) => {
-              state.urlForm.valid = false;
-              render(state, { elements }, i18nInstance).urlForm.error = 'networkError';
-              state.urlForm.error = null;
               // console.log(error, Ошибка сети);
+              state.rssForm.error = 'networkError';
+              render(state, { elements }, i18nInstance).rssForm.valid = false;
+              state.rssForm.state = null;
             });
         })
         .catch((error) => {
-          state.urlForm.valid = false;
-          render(state, { elements }, i18nInstance).urlForm.error = 'invalidUrl';
-          state.urlForm.error = null;
-          // console.log('Ссылка должна быть валидным URL', state.urlForm, error);
+          // console.log('Ссылка должна быть валидным URL', state.rssForm, error);
+          state.rssForm.error = 'invalidUrl';
+          render(state, { elements }, i18nInstance).rssForm.valid = false;
+          state.rssForm.valid = null;
         });
     }
   });

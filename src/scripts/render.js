@@ -2,6 +2,36 @@
 /* eslint-disable no-unused-vars */
 import onChange from 'on-change';
 
+const watchButtons = (state, { elements }) => {
+  const postButtons = document.querySelectorAll('button[data-bs-toggle=modal]');
+  postButtons.forEach((button) => {
+    button.addEventListener('click', () => {
+      const buttonId = button.getAttribute('data-id');
+      const postLink = button.previousSibling;
+      postLink.classList.remove('fw-bold');
+      postLink.classList.add('fw-normal', 'link-secondary');
+      const post = state.posts.find(({ itemId }) => itemId === buttonId);
+      elements.modalHeader.textContent = post.itemTitle;
+      elements.modalText.textContent = post.itemDescription;
+      elements.modalLink.setAttribute('href', post.itemLink);
+
+      state.uiState.posts.visited.push(buttonId);
+    });
+  });
+};
+
+const watchLinks = (state) => {
+  const postLinks = document.querySelectorAll('li > a');
+  postLinks.forEach((link) => {
+    link.addEventListener('click', (e) => {
+      const linkId = link.getAttribute('data-id');
+      link.classList.remove('fw-bold');
+      link.classList.add('fw-normal', 'link-secondary');
+      state.uiState.posts.visited.push(linkId);
+    });
+  });
+};
+
 const renderHeader = (container, key, i18nInstance) => { // container vs wrapper
   const wrapper = document.createElement('div');
   wrapper.classList.add('card-body');
@@ -21,10 +51,15 @@ const renderPostsItems = (state, container, i18nInstance) => {
   const items = feedsItems.map((item, i) => {
     const li = document.createElement('li');
     li.classList.add('list-group-item', 'd-flex', 'justify-content-between', 'align-items-start', 'border-0', 'border-end-0');
-    console.log(item, i);
+    // console.log(item, i);
 
     const link = document.createElement('a');
-    link.classList.add('fw-bold');
+    const visitedLinks = state.uiState.posts.visited;
+    if (visitedLinks.includes(item.itemId)) {
+      link.classList.add('fw-normal', 'link-secondary');
+    } else {
+      link.classList.add('fw-bold');
+    }
     link.setAttribute('href', item.itemLink);
     link.setAttribute('data-id', item.itemId);
     link.setAttribute('target', '_blank');
@@ -97,21 +132,32 @@ const renderFeeds = (state, { elements }, i18nInstance) => {
   renderFeedsItems(state, wrapper);
 };
 
+const renderSuccess = ({ elements }, i18nInstance) => {
+  elements.form.reset();
+  elements.input.focus();
+  elements.input.classList.remove('is-invalid');
+  elements.feedback.textContent = i18nInstance.t('loadingSuccess');
+  elements.feedback.classList.add('text-success');
+  elements.feedback.classList.remove('text-danger');
+};
+
+const renderError = (state, { elements }, i18nInstance) => {
+  elements.feedback.textContent = i18nInstance.t(state.rssForm.error);
+  elements.feedback.classList.add('text-danger');
+  elements.feedback.classList.remove('text-success');
+  elements.input.classList.add('is-invalid');
+};
+
 export default (state, { elements }, i18nInstance) => onChange(state, (path, current, previous) => {
-  // console.log(state, current, previous);
-  if (current) { // invalid
-    elements.feedback.textContent = i18nInstance.t(state.urlForm.error);
-    elements.feedback.classList.add('text-danger');
-    elements.feedback.classList.remove('text-success');
-    elements.input.classList.add('is-invalid');
-  } else { // valid
-    elements.form.reset();
-    elements.input.focus();
-    elements.input.classList.remove('is-invalid');
-    elements.feedback.textContent = i18nInstance.t('loadingSuccess');
-    elements.feedback.classList.add('text-success');
-    elements.feedback.classList.remove('text-danger');
+  // console.log('state', state, 'path', path, 'current', current);
+  if (current) { // valid
+    renderSuccess({ elements }, i18nInstance);
     renderFeeds(state, { elements }, i18nInstance);
     renderPosts(state, { elements }, i18nInstance);
+
+    watchButtons(state, { elements });
+    watchLinks(state);
+  } else { // invalid
+    renderError(state, { elements }, i18nInstance);
   }
 });
