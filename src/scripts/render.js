@@ -1,5 +1,4 @@
 /* eslint-disable no-param-reassign */
-/* eslint-disable no-unused-vars */
 import onChange from 'on-change';
 
 const watchButtons = (state, { elements }) => {
@@ -21,9 +20,9 @@ const watchButtons = (state, { elements }) => {
 };
 
 const watchLinks = (state) => {
-  const postLinks = document.querySelectorAll('li > a');
+  const postLinks = document.querySelectorAll('.post-link');
   postLinks.forEach((link) => {
-    link.addEventListener('click', (e) => {
+    link.addEventListener('click', () => {
       const linkId = link.getAttribute('data-id');
       link.classList.remove('fw-bold');
       link.classList.add('fw-normal', 'link-secondary');
@@ -48,7 +47,7 @@ const renderPostsItems = (state, container, i18nInstance) => {
   list.classList.add('list-group', 'border-0', 'rounded-0');
   const feedsItems = state.posts;
   // console.log(feedsItems);
-  const items = feedsItems.map((item, i) => {
+  const items = feedsItems.map((item) => {
     const li = document.createElement('li');
     li.classList.add('list-group-item', 'd-flex', 'justify-content-between', 'align-items-start', 'border-0', 'border-end-0');
     // console.log(item, i);
@@ -56,9 +55,9 @@ const renderPostsItems = (state, container, i18nInstance) => {
     const link = document.createElement('a');
     const visitedLinks = state.uiState.posts.visited;
     if (visitedLinks.includes(item.itemId)) {
-      link.classList.add('fw-normal', 'link-secondary');
+      link.classList.add('fw-normal', 'link-secondary', 'post-link');
     } else {
-      link.classList.add('fw-bold');
+      link.classList.add('fw-bold', 'post-link');
     }
     link.setAttribute('href', item.itemLink);
     link.setAttribute('data-id', item.itemId);
@@ -148,16 +147,27 @@ const renderError = (state, { elements }, i18nInstance) => {
   elements.input.classList.add('is-invalid');
 };
 
-export default (state, { elements }, i18nInstance) => onChange(state, (path, current, previous) => {
+export default (state, { elements }, i18nInstance) => onChange(state, (path, current) => {
   // console.log('state', state, 'path', path, 'current', current);
-  if (current) { // valid
-    renderSuccess({ elements }, i18nInstance);
-    renderFeeds(state, { elements }, i18nInstance);
-    renderPosts(state, { elements }, i18nInstance);
+  switch (path) {
+    case 'rssForm.valid':
+      if (current) { // valid
+        renderSuccess({ elements }, i18nInstance);
+        renderFeeds(state, { elements }, i18nInstance);
+        renderPosts(state, { elements }, i18nInstance);
 
-    watchButtons(state, { elements });
-    watchLinks(state);
-  } else { // invalid
-    renderError(state, { elements }, i18nInstance);
+        watchButtons(state, { elements });
+        watchLinks(state);
+      } else { // invalid
+        renderError(state, { elements }, i18nInstance);
+      }
+      break;
+    case 'posts':
+      renderPosts(state, { elements }, i18nInstance);
+      watchButtons(state, { elements });
+      watchLinks(state);
+      break;
+    default:
+      break;
   }
 });
