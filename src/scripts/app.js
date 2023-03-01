@@ -73,7 +73,7 @@ const schema = yup.object().shape({
   url: yup.string().url().required(),
 });
 
-export default async () => {
+export default () => {
   const defaultLanguage = 'ru';
 
   const state = {
@@ -93,10 +93,16 @@ export default async () => {
   };
 
   const i18nInstance = i18n.createInstance();
-  await i18nInstance.init({
+  i18nInstance.init({
     lng: defaultLanguage,
     debug: false,
     resources,
+    // eslint-disable-next-line consistent-return
+  }, (err, t) => {
+    if (err) {
+      return console.log('something went wrong loading', err);
+    }
+    t('key');
   });
 
   const elements = {
