@@ -170,7 +170,7 @@ export default () => {
               console.log(error, 'Ошибка сети');
               state.rssForm.error = 'networkError';
               render(state, { elements }, i18nInstance).rssForm.valid = false;
-              state.rssForm.state = null;
+              state.rssForm.valid = null;
             });
         })
         .catch((error) => {
