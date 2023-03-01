@@ -1,4 +1,3 @@
-/* eslint-disable max-len */
 /* eslint-disable no-param-reassign */
 import * as yup from 'yup';
 import 'bootstrap';
@@ -42,14 +41,22 @@ const fetchNewData = (state, { elements }, i18nInstance, getUniqueId) => {
   const delay = 5000;
   const promises = state.rssForm.urls.map((url) => {
     const link = `https://allorigins.hexlet.app/get?disableCache=true&url=${encodeURIComponent(url)}`;
+
     return axios.get(link)
       .then((response) => {
         const xmlDoc = parser(response.data.contents);
         const errorNode = xmlDoc.querySelector('parsererror');
+
         if (!errorNode) {
           const posts = getPosts(xmlDoc, getUniqueId);
-          const newPosts = posts.filter((obj2) => !state.posts.some((obj1) => obj1.itemTitle === obj2.itemTitle));
-          console.log('state', state.posts, 'posts', posts, 'NEWposts', newPosts);
+          const newPosts = posts.filter((obj2) => {
+            const current = !state.posts.some((obj1) => {
+              const isEqual = obj1.itemTitle === obj2.itemTitle;
+              return isEqual;
+            });
+            return current;
+          });
+
           if (newPosts.length) {
             render(state, { elements }, i18nInstance).posts.unshift(...newPosts);
           }
@@ -66,7 +73,7 @@ const schema = yup.object().shape({
   url: yup.string().url().required(),
 });
 
-export default async () => {
+export default () => {
   const defaultLanguage = 'ru';
 
   const state = {
@@ -86,10 +93,16 @@ export default async () => {
   };
 
   const i18nInstance = i18n.createInstance();
-  await i18nInstance.init({ // => promise ?
+  i18nInstance.init({
     lng: defaultLanguage,
     debug: false,
     resources,
+    // eslint-disable-next-line consistent-return
+  }, (err, t) => {
+    if (err) {
+      return console.log('something went wrong loading', err);
+    }
+    t('key');
   });
 
   const elements = {

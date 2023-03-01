@@ -9,6 +9,7 @@ const watchButtons = (state, { elements }) => {
       const postLink = button.previousSibling;
       postLink.classList.remove('fw-bold');
       postLink.classList.add('fw-normal', 'link-secondary');
+
       const post = state.posts.find(({ itemId }) => itemId === buttonId);
       elements.modalHeader.textContent = post.itemTitle;
       elements.modalText.textContent = post.itemDescription;
@@ -20,7 +21,7 @@ const watchButtons = (state, { elements }) => {
 };
 
 const watchLinks = (state) => {
-  const postLinks = document.querySelectorAll('li > a');
+  const postLinks = document.querySelectorAll('.post-link');
   postLinks.forEach((link) => {
     link.addEventListener('click', () => {
       const linkId = link.getAttribute('data-id');
@@ -31,7 +32,7 @@ const watchLinks = (state) => {
   });
 };
 
-const renderHeader = (container, key, i18nInstance) => { // container vs wrapper
+const renderHeader = (container, key, i18nInstance) => {
   const wrapper = document.createElement('div');
   wrapper.classList.add('card-body');
   container.append(wrapper);
@@ -45,24 +46,23 @@ const renderHeader = (container, key, i18nInstance) => { // container vs wrapper
 const renderPostsItems = (state, container, i18nInstance) => {
   const list = document.createElement('ul');
   list.classList.add('list-group', 'border-0', 'rounded-0');
+
   const feedsItems = state.posts;
-  // console.log(feedsItems);
   const items = feedsItems.map((item) => {
     const li = document.createElement('li');
     li.classList.add('list-group-item', 'd-flex', 'justify-content-between', 'align-items-start', 'border-0', 'border-end-0');
-    // console.log(item, i);
 
     const link = document.createElement('a');
     const visitedLinks = state.uiState.posts.visited;
     if (visitedLinks.includes(item.itemId)) {
-      link.classList.add('fw-normal', 'link-secondary');
+      link.classList.add('fw-normal', 'link-secondary', 'post-link');
     } else {
-      link.classList.add('fw-bold');
+      link.classList.add('fw-bold', 'post-link');
     }
     link.setAttribute('href', item.itemLink);
     link.setAttribute('data-id', item.itemId);
     link.setAttribute('target', '_blank');
-    link.setAttribute('rel', 'noopener noreferrer'); // ?
+    link.setAttribute('rel', 'noopener noreferrer');
     link.textContent = item.itemTitle;
     li.append(link);
 
@@ -89,6 +89,7 @@ const renderPosts = (state, { elements }, i18nInstance) => {
   const wrapper = document.createElement('div');
   wrapper.classList.add('card', 'border-0');
   container.append(wrapper);
+
   renderHeader(wrapper, 'posts', i18nInstance);
   renderPostsItems(state, wrapper, i18nInstance);
 };
@@ -101,7 +102,6 @@ const renderFeedsItems = (state, container) => {
   const items = feedsItems.map((item) => {
     const li = document.createElement('li');
     li.classList.add('list-group-item', 'border-0', 'border-end-0');
-    // console.log(item);
 
     const header = document.createElement('h3');
     header.classList.add('h6', 'm-0');
@@ -127,6 +127,7 @@ const renderFeeds = (state, { elements }, i18nInstance) => {
   const wrapper = document.createElement('div');
   wrapper.classList.add('card', 'border-0');
   container.append(wrapper);
+
   renderHeader(wrapper, 'feeds', i18nInstance);
   renderFeedsItems(state, wrapper);
 };
@@ -148,7 +149,6 @@ const renderError = (state, { elements }, i18nInstance) => {
 };
 
 export default (state, { elements }, i18nInstance) => onChange(state, (path, current) => {
-  // console.log('state', state, 'path', path, 'current', current);
   switch (path) {
     case 'rssForm.valid':
       if (current) { // valid
