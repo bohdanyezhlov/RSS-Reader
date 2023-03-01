@@ -20,7 +20,7 @@ const watchButtons = (state, { elements }) => {
 };
 
 const watchLinks = (state) => {
-  const postLinks = document.querySelectorAll('.post-link');
+  const postLinks = document.querySelectorAll('li > a');
   postLinks.forEach((link) => {
     link.addEventListener('click', () => {
       const linkId = link.getAttribute('data-id');
@@ -55,9 +55,9 @@ const renderPostsItems = (state, container, i18nInstance) => {
     const link = document.createElement('a');
     const visitedLinks = state.uiState.posts.visited;
     if (visitedLinks.includes(item.itemId)) {
-      link.classList.add('fw-normal', 'link-secondary', 'post-link');
+      link.classList.add('fw-normal', 'link-secondary');
     } else {
-      link.classList.add('fw-bold', 'post-link');
+      link.classList.add('fw-bold');
     }
     link.setAttribute('href', item.itemLink);
     link.setAttribute('data-id', item.itemId);
