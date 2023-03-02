@@ -15,7 +15,7 @@ const watchButtons = (state, { elements }) => {
       elements.modalText.textContent = post.itemDescription;
       elements.modalLink.setAttribute('href', post.itemLink);
 
-      state.uiState.posts.visited.push(buttonId);
+      state.uiState.posts.visited.push(buttonId); // fix
     });
   });
 };
@@ -27,7 +27,8 @@ const watchLinks = (state) => {
       const linkId = link.getAttribute('data-id');
       link.classList.remove('fw-bold');
       link.classList.add('fw-normal', 'link-secondary');
-      state.uiState.posts.visited.push(linkId);
+
+      state.uiState.posts.visited.push(linkId); // fix
     });
   });
 };
@@ -148,8 +149,25 @@ const renderError = (state, { elements }, i18nInstance) => {
   elements.input.classList.add('is-invalid');
 };
 
+const toggleDisableControllers = (state, { elements }) => {
+  const status = state.rssForm.state;
+  console.log(status);
+  if (status === 'sending') {
+    elements.input.readOnly = true;
+    elements.button.disabled = true;
+  }
+
+  if (status === 'finished') {
+    elements.input.readOnly = false;
+    elements.button.disabled = false;
+  }
+};
+
 export default (state, { elements }, i18nInstance) => onChange(state, (path, current) => {
   switch (path) {
+    case 'rssForm.state':
+      toggleDisableControllers(state, { elements });
+      break;
     case 'rssForm.valid':
       if (current) { // valid
         renderSuccess({ elements }, i18nInstance);

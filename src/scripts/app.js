@@ -33,7 +33,8 @@ const fetchNewData = (state, { elements }, i18nInstance, getUniqueId) => {
             render(state, { elements }, i18nInstance).posts.unshift(...newPosts);
           }
         }
-      });
+      })
+      .catch((e) => (e.message)); // ?
   });
 
   Promise.all(promises).then(() => {
@@ -49,6 +50,7 @@ export default () => {
     rssForm: {
       feedUrls: [],
       valid: null,
+      state: null,
       error: null,
     },
     feeds: [],
@@ -76,7 +78,7 @@ export default () => {
   const elements = {
     form: document.querySelector('form'),
     input: document.querySelector('#url-input'),
-    button: document.querySelector('button'),
+    button: document.querySelector('button[type="submit"]'),
     feedback: document.querySelector('.feedback'),
     posts: document.querySelector('.posts'),
     feeds: document.querySelector('.feeds'),
@@ -85,7 +87,7 @@ export default () => {
     modalLink: document.querySelector('.full-article'),
   };
 
-  elements.form.addEventListener('submit', (e) => { // TODO: readonly true & disable
+  elements.form.addEventListener('submit', (e) => {
     e.preventDefault();
     const newUrl = (new FormData(e.target)).get('url');
     const data = {
@@ -98,6 +100,8 @@ export default () => {
 
     uniqUrlsSchema.validate(data.url)
       .then(() => {
+        render(state, { elements }).rssForm.state = 'sending';
+
         const link = `https://allorigins.hexlet.app/get?disableCache=true&url=${encodeURIComponent(data.url)}`;
         axios.get(link)
           .then((response) => {
@@ -119,6 +123,7 @@ export default () => {
               state.rssForm.feedUrls.push(data.url);
               state.rssForm.error = '';
               render(state, { elements }, i18nInstance).rssForm.valid = true;
+              render(state, { elements }).rssForm.state = 'finished';
               state.rssForm.valid = null;
 
               fetchNewData(state, { elements }, i18nInstance, getUniqueId);
@@ -126,6 +131,8 @@ export default () => {
               console.log('Invalid RSS feed');
               state.rssForm.error = 'noValidRss';
               render(state, { elements }, i18nInstance).rssForm.valid = false;
+              render(state, { elements }).rssForm.state = 'finished';
+
               state.rssForm.valid = null;
             }
           })
