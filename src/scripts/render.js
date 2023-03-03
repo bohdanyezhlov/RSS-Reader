@@ -145,11 +145,12 @@ const toggleDisableControllers = (state, { elements }) => {
 };
 
 export default (state, { elements }, i18nInstance) => onChange(state, (path, current) => {
-  console.log(state, path, current);
+  // console.log(state, path, current);
   switch (path) {
     case 'rssForm.state': // sending / finished
       toggleDisableControllers(state, { elements });
       break;
+
     case 'rssForm.valid':
       if (current) { // valid
         renderSuccess({ elements }, i18nInstance);
@@ -159,13 +160,16 @@ export default (state, { elements }, i18nInstance) => onChange(state, (path, cur
         renderError(state, { elements }, i18nInstance);
       }
       break;
+
     case 'uiState.posts.visitedId':
       watchVisitedPosts(state, { elements });
       break;
+
     case 'posts':
       renderPosts(state, { elements }, i18nInstance);
       watchVisitedPosts(state, { elements });
       break;
+
     default:
       break;
   }

@@ -8,19 +8,19 @@ import resources from './locales/index';
 import render from './render';
 import parser from './parser/index';
 
-const watchVisitedPost = (state, { elements }) => {
+const watchVisitedPost = (watchedState) => {
   const postButtons = document.querySelectorAll('button[data-bs-toggle=modal]');
   const postLinks = document.querySelectorAll('li > a');
   const postElements = concat(...postButtons, ...postLinks);
   postElements.forEach((postEl) => {
     postEl.addEventListener('click', () => {
       const visitedId = postEl.getAttribute('data-id');
-      render(state, { elements }).uiState.posts.visitedId.push(visitedId);
+      watchedState.uiState.posts.visitedId.push(visitedId);
     });
   });
 };
 
-const fetchNewData = (state, { elements }, i18nInstance, getUniqueId) => {
+const fetchNewData = (state, getUniqueId, watchedState) => {
   const delay = 5000;
   const promises = state.rssForm.feedUrls.map((url) => {
     const link = `https://allorigins.hexlet.app/get?disableCache=true&url=${encodeURIComponent(url)}`;
@@ -42,16 +42,16 @@ const fetchNewData = (state, { elements }, i18nInstance, getUniqueId) => {
           if (newPosts.length) {
             // eslint-disable-next-line no-return-assign
             newPosts.forEach((post) => post.itemId = getUniqueId());
-            render(state, { elements }, i18nInstance).posts.unshift(...newPosts);
-            watchVisitedPost(state, { elements });
+            watchedState.posts.unshift(...newPosts);
+            watchVisitedPost(watchedState);
           }
         }
       })
-      .catch((e) => (e.message)); // ?
+      .catch((e) => (e.message));
   });
 
   Promise.all(promises).then(() => {
-    setTimeout(() => fetchNewData(state, { elements }, i18nInstance, getUniqueId), delay);
+    setTimeout(() => fetchNewData(state, getUniqueId, watchedState), delay);
   });
 };
 
@@ -100,6 +100,8 @@ export default () => {
     modalLink: document.querySelector('.full-article'),
   };
 
+  const watchedState = render(state, { elements }, i18nInstance);
+
   elements.form.addEventListener('submit', (e) => {
     e.preventDefault();
     const newUrl = (new FormData(e.target)).get('url');
@@ -113,7 +115,7 @@ export default () => {
 
     uniqUrlsSchema.validate(data.url)
       .then(() => {
-        render(state, { elements }).rssForm.state = 'sending';
+        watchedState.rssForm.state = 'sending';
 
         const link = `https://allorigins.hexlet.app/get?disableCache=true&url=${encodeURIComponent(data.url)}`;
         axios.get(link)
@@ -131,24 +133,25 @@ export default () => {
               state.posts.unshift(...posts);
               state.rssForm.feedUrls.push(data.url);
               state.rssForm.error = '';
-              render(state, { elements }, i18nInstance).rssForm.valid = true;
+              watchedState.rssForm.valid = true;
               state.rssForm.valid = null;
-              render(state, { elements }).rssForm.state = 'finished';
-              watchVisitedPost(state, { elements });
-              fetchNewData(state, { elements }, i18nInstance, getUniqueId);
+              watchedState.rssForm.state = 'finished';
+              watchVisitedPost(watchedState);
+              fetchNewData(state, getUniqueId, watchedState);
             } else { // Invalid RSS feed
               state.rssForm.error = 'noValidRss';
-              render(state, { elements }, i18nInstance).rssForm.valid = false;
+              watchedState.rssForm.valid = false;
               state.rssForm.valid = null;
-              render(state, { elements }).rssForm.state = 'finished';
+              watchedState.rssForm.state = 'finished';
             }
           })
           .catch((error) => {
             console.log(error.message, 'Ошибка сети');
+
             state.rssForm.error = 'networkError';
-            render(state, { elements }, i18nInstance).rssForm.valid = false;
+            watchedState.rssForm.valid = false;
             state.rssForm.valid = null;
-            render(state, { elements }).rssForm.state = 'finished';
+            watchedState.rssForm.state = 'finished';
           });
       })
       .catch((err) => {
@@ -159,16 +162,18 @@ export default () => {
           case 'this must be a valid URL':
             errorMessage = 'invalidUrl';
             break;
+
           case 'this must not be one of the following values':
             errorMessage = 'alreadyExist';
             break;
+
           default:
             break;
         }
-
         console.log(err.message, errorMessage);
+
         state.rssForm.error = errorMessage;
-        render(state, { elements }, i18nInstance).rssForm.valid = false;
+        watchedState.rssForm.valid = false;
         state.rssForm.valid = null;
       });
   });
