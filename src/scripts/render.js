@@ -1,36 +1,17 @@
 /* eslint-disable no-param-reassign */
 import onChange from 'on-change';
+import { last } from 'lodash';
 
-const watchButtons = (state, { elements }) => {
-  const postButtons = document.querySelectorAll('button[data-bs-toggle=modal]');
-  postButtons.forEach((button) => {
-    button.addEventListener('click', () => {
-      const buttonId = button.getAttribute('data-id');
-      const postLink = button.previousSibling;
-      postLink.classList.remove('fw-bold');
-      postLink.classList.add('fw-normal', 'link-secondary');
+const watchVisitedPosts = (state, { elements }) => {
+  const visitedId = last(state.uiState.posts.visitedId);
+  const postLink = document.querySelector(`a[data-id="${visitedId}"]`);
+  postLink.classList.remove('fw-bold');
+  postLink.classList.add('fw-normal', 'link-secondary');
 
-      const post = state.posts.find(({ itemId }) => itemId === buttonId);
-      elements.modalHeader.textContent = post.itemTitle;
-      elements.modalText.textContent = post.itemDescription;
-      elements.modalLink.setAttribute('href', post.itemLink);
-
-      state.uiState.posts.visited.push(buttonId); // fix
-    });
-  });
-};
-
-const watchLinks = (state) => {
-  const postLinks = document.querySelectorAll('li > a');
-  postLinks.forEach((link) => {
-    link.addEventListener('click', () => {
-      const linkId = link.getAttribute('data-id');
-      link.classList.remove('fw-bold');
-      link.classList.add('fw-normal', 'link-secondary');
-
-      state.uiState.posts.visited.push(linkId); // fix
-    });
-  });
+  const post = state.posts.find(({ itemId }) => itemId === visitedId);
+  elements.modalHeader.textContent = post.itemTitle;
+  elements.modalText.textContent = post.itemDescription;
+  elements.modalLink.setAttribute('href', post.itemLink);
 };
 
 const renderHeader = (container, key, i18nInstance) => {
@@ -54,7 +35,7 @@ const renderPostsItems = (state, container, i18nInstance) => {
     li.classList.add('list-group-item', 'd-flex', 'justify-content-between', 'align-items-start', 'border-0', 'border-end-0');
 
     const link = document.createElement('a');
-    const visitedLinks = state.uiState.posts.visited;
+    const visitedLinks = state.uiState.posts.visitedId;
     if (visitedLinks.includes(item.itemId)) {
       link.classList.add('fw-normal', 'link-secondary');
     } else {
@@ -151,7 +132,7 @@ const renderError = (state, { elements }, i18nInstance) => {
 
 const toggleDisableControllers = (state, { elements }) => {
   const status = state.rssForm.state;
-  console.log(status);
+
   if (status === 'sending') {
     elements.input.readOnly = true;
     elements.button.disabled = true;
@@ -164,8 +145,9 @@ const toggleDisableControllers = (state, { elements }) => {
 };
 
 export default (state, { elements }, i18nInstance) => onChange(state, (path, current) => {
+  console.log(state, path, current);
   switch (path) {
-    case 'rssForm.state':
+    case 'rssForm.state': // sending / finished
       toggleDisableControllers(state, { elements });
       break;
     case 'rssForm.valid':
@@ -173,17 +155,16 @@ export default (state, { elements }, i18nInstance) => onChange(state, (path, cur
         renderSuccess({ elements }, i18nInstance);
         renderFeeds(state, { elements }, i18nInstance);
         renderPosts(state, { elements }, i18nInstance);
-
-        watchButtons(state, { elements });
-        watchLinks(state);
       } else { // invalid
         renderError(state, { elements }, i18nInstance);
       }
       break;
+    case 'uiState.posts.visitedId':
+      watchVisitedPosts(state, { elements });
+      break;
     case 'posts':
       renderPosts(state, { elements }, i18nInstance);
-      watchButtons(state, { elements });
-      watchLinks(state);
+      watchVisitedPosts(state, { elements });
       break;
     default:
       break;

@@ -8,6 +8,26 @@ import resources from './locales/index';
 import render from './render';
 import parser from './parser/index';
 
+const watchVisitedPostButtons = (state, { elements }) => {
+  const postButtons = document.querySelectorAll('button[data-bs-toggle=modal]');
+  postButtons.forEach((button) => {
+    button.addEventListener('click', () => {
+      const visitedId = button.getAttribute('data-id');
+      render(state, { elements }).uiState.posts.visitedId.push(visitedId);
+    });
+  });
+};
+
+const watchVisitedPostLinks = (state, { elements }) => {
+  const postLinks = document.querySelectorAll('li > a');
+  postLinks.forEach((link) => {
+    link.addEventListener('click', () => {
+      const visitedId = link.getAttribute('data-id');
+      render(state, { elements }).uiState.posts.visitedId.push(visitedId);
+    });
+  });
+};
+
 const fetchNewData = (state, { elements }, i18nInstance, getUniqueId) => {
   const delay = 5000;
   const promises = state.rssForm.feedUrls.map((url) => {
@@ -31,6 +51,8 @@ const fetchNewData = (state, { elements }, i18nInstance, getUniqueId) => {
             // eslint-disable-next-line no-return-assign
             newPosts.forEach((post) => post.itemId = getUniqueId());
             render(state, { elements }, i18nInstance).posts.unshift(...newPosts);
+            watchVisitedPostButtons(state, { elements });
+            watchVisitedPostLinks(state, { elements });
           }
         }
       })
@@ -57,7 +79,7 @@ export default () => {
     posts: [],
     uiState: {
       posts: {
-        visited: [],
+        visitedId: [],
       },
     },
   };
@@ -107,13 +129,9 @@ export default () => {
           .then((response) => {
             const xmlDoc = parser(response.data.contents);
 
-            if (xmlDoc) {
-              // console.log('Valid RSS feed');
-
-              // getFeed
+            if (xmlDoc) { // Valid RSS feed
               const { feed } = xmlDoc;
               feed.id = getUniqueId();
-              // getPosts
               const { posts } = xmlDoc;
               // eslint-disable-next-line no-return-assign
               posts.forEach((post) => post.itemId = getUniqueId());
@@ -123,17 +141,16 @@ export default () => {
               state.rssForm.feedUrls.push(data.url);
               state.rssForm.error = '';
               render(state, { elements }, i18nInstance).rssForm.valid = true;
-              render(state, { elements }).rssForm.state = 'finished';
               state.rssForm.valid = null;
-
+              render(state, { elements }).rssForm.state = 'finished';
+              watchVisitedPostButtons(state, { elements });
+              watchVisitedPostLinks(state, { elements });
               fetchNewData(state, { elements }, i18nInstance, getUniqueId);
-            } else {
-              console.log('Invalid RSS feed');
+            } else { // Invalid RSS feed
               state.rssForm.error = 'noValidRss';
               render(state, { elements }, i18nInstance).rssForm.valid = false;
-              render(state, { elements }).rssForm.state = 'finished';
-
               state.rssForm.valid = null;
+              render(state, { elements }).rssForm.state = 'finished';
             }
           })
           .catch((error) => {
@@ -141,6 +158,7 @@ export default () => {
             state.rssForm.error = 'networkError';
             render(state, { elements }, i18nInstance).rssForm.valid = false;
             state.rssForm.valid = null;
+            render(state, { elements }).rssForm.state = 'finished';
           });
       })
       .catch((err) => {
