@@ -3,26 +3,18 @@ import * as yup from 'yup';
 import 'bootstrap';
 import i18n from 'i18next';
 import axios from 'axios';
-import { uniqueId } from 'lodash';
+import { uniqueId, concat } from 'lodash';
 import resources from './locales/index';
 import render from './render';
 import parser from './parser/index';
 
-const watchVisitedPostButtons = (state, { elements }) => {
+const watchVisitedPost = (state, { elements }) => {
   const postButtons = document.querySelectorAll('button[data-bs-toggle=modal]');
-  postButtons.forEach((button) => {
-    button.addEventListener('click', () => {
-      const visitedId = button.getAttribute('data-id');
-      render(state, { elements }).uiState.posts.visitedId.push(visitedId);
-    });
-  });
-};
-
-const watchVisitedPostLinks = (state, { elements }) => {
   const postLinks = document.querySelectorAll('li > a');
-  postLinks.forEach((link) => {
-    link.addEventListener('click', () => {
-      const visitedId = link.getAttribute('data-id');
+  const postElements = concat(...postButtons, ...postLinks);
+  postElements.forEach((postEl) => {
+    postEl.addEventListener('click', () => {
+      const visitedId = postEl.getAttribute('data-id');
       render(state, { elements }).uiState.posts.visitedId.push(visitedId);
     });
   });
@@ -51,8 +43,7 @@ const fetchNewData = (state, { elements }, i18nInstance, getUniqueId) => {
             // eslint-disable-next-line no-return-assign
             newPosts.forEach((post) => post.itemId = getUniqueId());
             render(state, { elements }, i18nInstance).posts.unshift(...newPosts);
-            watchVisitedPostButtons(state, { elements });
-            watchVisitedPostLinks(state, { elements });
+            watchVisitedPost(state, { elements });
           }
         }
       })
@@ -143,8 +134,7 @@ export default () => {
               render(state, { elements }, i18nInstance).rssForm.valid = true;
               state.rssForm.valid = null;
               render(state, { elements }).rssForm.state = 'finished';
-              watchVisitedPostButtons(state, { elements });
-              watchVisitedPostLinks(state, { elements });
+              watchVisitedPost(state, { elements });
               fetchNewData(state, { elements }, i18nInstance, getUniqueId);
             } else { // Invalid RSS feed
               state.rssForm.error = 'noValidRss';
