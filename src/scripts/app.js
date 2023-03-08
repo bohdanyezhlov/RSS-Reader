@@ -7,46 +7,46 @@ import resources from './locales/index';
 import render from './render';
 import parser from './parser/index';
 
-const watchVisitedPost = (view) => { // fix
+const watchVisitedPost = (view) => {
   document.addEventListener('click', (e) => {
     const visitedId = e.target.getAttribute('data-id');
 
     if (visitedId) {
-      // console.log(e.target, visitedId);
       view.ui.posts.visitedId.push(visitedId);
     }
   });
 };
 
-const getProxy = (url) => `https://allorigins.hexlet.app/get?disableCache=true&url=${encodeURIComponent(url)}`;
+const getProxyLink = (url) => `https://allorigins.hexlet.app/get?disableCache=true&url=${encodeURIComponent(url)}`;
 const delay = 5000;
 
 const fetchNewData = (state, view) => {
   const urls = state.feeds.map(({ url }) => url);
   const promises = urls.map((url) => {
-    const link = getProxy(url);
+    const link = getProxyLink(url);
 
     return axios.get(link)
       .then((response) => {
         const xmlDoc = parser(response.data.contents);
 
-        if (xmlDoc) {
-          const { posts } = xmlDoc;
-          const newPosts = posts
-            .filter((obj2) => !state.posts
-              .some((obj1) => obj1.itemTitle === obj2.itemTitle));
+        // if (xmlDoc) { ?
+        const { posts } = xmlDoc;
+        const newPosts = posts
+          .filter((obj2) => !state.posts
+            .some((obj1) => obj1.itemTitle === obj2.itemTitle));
 
-          if (newPosts.length) {
-            const postsWithId = posts.map((post) => {
-              post.itemId = uniqueId();
-              return post;
-            });
-            view.posts.unshift(...postsWithId);
-            watchVisitedPost(view);
-          }
+        if (newPosts.length) {
+          const postsWithId = posts.map((post) => {
+            post.itemId = uniqueId();
+            return post;
+          });
+          view.posts.unshift(...postsWithId);
         }
+        // }
       })
-      .catch((e) => (e.message));
+      .catch((e) => (
+        e.message // invalid rss?
+      ));
   });
 
   Promise.all(promises).then(() => {
@@ -117,7 +117,7 @@ export default () => {
           .then(() => {
             view.rssForm.status = 'sending';
 
-            const link = getProxy(data.url);
+            const link = getProxyLink(data.url);
             axios.get(link)
               .then((response) => {
                 const xmlDoc = parser(response.data.contents);
@@ -148,7 +148,7 @@ export default () => {
                 }
               })
               .catch((error) => {
-                console.log(error.message, 'Ошибка сети');
+                console.log(error.message, 'Ошибка сети или ?');
 
                 state.rssForm.error = 'networkError';
                 view.rssForm.valid = false;
