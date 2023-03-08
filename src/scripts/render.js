@@ -1,9 +1,9 @@
-/* eslint-disable no-param-reassign */
 import onChange from 'on-change';
 import { last } from 'lodash';
 
 const watchVisitedPosts = (state, { elements }) => {
-  const visitedId = last(state.uiState.posts.visitedId);
+  // console.log(state, elements, 'watchVisitedPosts');
+  const visitedId = last(state.ui.posts.visitedId);
   const postLink = document.querySelector(`a[data-id="${visitedId}"]`);
   postLink.classList.remove('fw-bold');
   postLink.classList.add('fw-normal', 'link-secondary');
@@ -35,7 +35,7 @@ const renderPostsItems = (state, container, i18nInstance) => {
     li.classList.add('list-group-item', 'd-flex', 'justify-content-between', 'align-items-start', 'border-0', 'border-end-0');
 
     const link = document.createElement('a');
-    const visitedLinks = state.uiState.posts.visitedId;
+    const visitedLinks = state.ui.posts.visitedId;
     if (visitedLinks.includes(item.itemId)) {
       link.classList.add('fw-normal', 'link-secondary');
     } else {
@@ -131,7 +131,7 @@ const renderError = (state, { elements }, i18nInstance) => {
 };
 
 const toggleDisableControllers = (state, { elements }) => {
-  const status = state.rssForm.state;
+  const { status } = state.rssForm.status;
 
   if (status === 'sending') {
     elements.input.readOnly = true;
@@ -145,9 +145,9 @@ const toggleDisableControllers = (state, { elements }) => {
 };
 
 export default (state, { elements }, i18nInstance) => onChange(state, (path, current) => {
-  // console.log(state, path, current);
+  console.log(state, 'path', path, 'current', current);
   switch (path) {
-    case 'rssForm.state': // sending / finished
+    case 'rssForm.status': // sending / finished
       toggleDisableControllers(state, { elements });
       break;
 
@@ -161,7 +161,7 @@ export default (state, { elements }, i18nInstance) => onChange(state, (path, cur
       }
       break;
 
-    case 'uiState.posts.visitedId':
+    case 'ui.posts.visitedId':
       watchVisitedPosts(state, { elements });
       break;
 

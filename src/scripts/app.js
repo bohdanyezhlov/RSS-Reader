@@ -1,29 +1,30 @@
-/* eslint-disable no-param-reassign */
 import * as yup from 'yup';
 import 'bootstrap';
 import i18n from 'i18next';
 import axios from 'axios';
-import { uniqueId, concat } from 'lodash';
+import { uniqueId } from 'lodash';
 import resources from './locales/index';
 import render from './render';
 import parser from './parser/index';
 
-const watchVisitedPost = (view) => {
-  const postButtons = document.querySelectorAll('button[data-bs-toggle=modal]');
-  const postLinks = document.querySelectorAll('li > a');
-  const postElements = concat(...postButtons, ...postLinks);
-  postElements.forEach((postEl) => {
-    postEl.addEventListener('click', () => {
-      const visitedId = postEl.getAttribute('data-id');
-      view.uiState.posts.visitedId.push(visitedId);
-    });
+const watchVisitedPost = (view) => { // fix
+  document.addEventListener('click', (e) => {
+    const visitedId = e.target.getAttribute('data-id');
+
+    if (visitedId) {
+      // console.log(e.target, visitedId);
+      view.ui.posts.visitedId.push(visitedId);
+    }
   });
 };
 
-const fetchNewData = (state, getUniqueId, view) => {
-  const delay = 5000;
-  const promises = state.rssForm.feedUrls.map((url) => {
-    const link = `https://allorigins.hexlet.app/get?disableCache=true&url=${encodeURIComponent(url)}`;
+const getProxy = (url) => `https://allorigins.hexlet.app/get?disableCache=true&url=${encodeURIComponent(url)}`;
+const delay = 5000;
+
+const fetchNewData = (state, view) => {
+  const urls = state.feeds.map(({ url }) => url);
+  const promises = urls.map((url) => {
+    const link = getProxy(url);
 
     return axios.get(link)
       .then((response) => {
@@ -31,18 +32,16 @@ const fetchNewData = (state, getUniqueId, view) => {
 
         if (xmlDoc) {
           const { posts } = xmlDoc;
-          const newPosts = posts.filter((obj2) => {
-            const current = !state.posts.some((obj1) => {
-              const isEqual = obj1.itemTitle === obj2.itemTitle;
-              return isEqual;
-            });
-            return current;
-          });
+          const newPosts = posts
+            .filter((obj2) => !state.posts
+              .some((obj1) => obj1.itemTitle === obj2.itemTitle));
 
           if (newPosts.length) {
-            // eslint-disable-next-line no-return-assign
-            newPosts.forEach((post) => post.itemId = getUniqueId());
-            view.posts.unshift(...newPosts);
+            const postsWithId = posts.map((post) => {
+              post.itemId = uniqueId();
+              return post;
+            });
+            view.posts.unshift(...postsWithId);
             watchVisitedPost(view);
           }
         }
@@ -51,7 +50,7 @@ const fetchNewData = (state, getUniqueId, view) => {
   });
 
   Promise.all(promises).then(() => {
-    setTimeout(() => fetchNewData(state, getUniqueId, view), delay);
+    setTimeout(() => fetchNewData(state, view), delay);
   });
 };
 
@@ -61,14 +60,13 @@ export default () => {
   const state = {
     lng: defaultLanguage,
     rssForm: {
-      feedUrls: [],
       valid: null,
-      state: null,
+      status: null,
       error: null,
     },
     feeds: [],
     posts: [],
-    uiState: {
+    ui: {
       posts: {
         visitedId: [],
       },
@@ -80,101 +78,92 @@ export default () => {
     lng: defaultLanguage,
     debug: false,
     resources,
-    // eslint-disable-next-line consistent-return
-  }, (err, t) => {
-    if (err) {
-      return console.log('something went wrong loading', err);
-    }
-    t('key');
-  });
+  })
+    .then(() => {
+      const elements = {
+        form: document.querySelector('form'),
+        input: document.querySelector('#url-input'),
+        button: document.querySelector('button[type="submit"]'),
+        feedback: document.querySelector('.feedback'),
+        posts: document.querySelector('.posts'),
+        feeds: document.querySelector('.feeds'),
+        modalHeader: document.querySelector('.modal-title'),
+        modalText: document.querySelector('.modal-body'),
+        modalLink: document.querySelector('.full-article'),
+      };
 
-  const elements = {
-    form: document.querySelector('form'),
-    input: document.querySelector('#url-input'),
-    button: document.querySelector('button[type="submit"]'),
-    feedback: document.querySelector('.feedback'),
-    posts: document.querySelector('.posts'),
-    feeds: document.querySelector('.feeds'),
-    modalHeader: document.querySelector('.modal-title'),
-    modalText: document.querySelector('.modal-body'),
-    modalLink: document.querySelector('.full-article'),
-  };
+      const view = render(state, { elements }, i18nInstance);
 
-  const view = render(state, { elements }, i18nInstance);
+      elements.form.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const newUrl = (new FormData(e.target)).get('url');
+        const data = {
+          url: newUrl,
+        };
 
-  elements.form.addEventListener('submit', (e) => {
-    e.preventDefault();
-    const newUrl = (new FormData(e.target)).get('url');
-    const data = {
-      url: newUrl,
-    };
+        yup.setLocale({
+          string: {
+            url: i18nInstance.t('invalidUrl'),
+          },
+          mixed: {
+            notOneOf: i18nInstance.t('alreadyExist'),
+          },
+        });
+        const baseUrlSchema = yup.string().url().required();
+        const urls = state.feeds.map(({ url }) => url);
+        const uniqUrlsSchema = baseUrlSchema.notOneOf(urls);
 
-    const baseUrlSchema = yup.string().url().required();
-    const uniqUrlsSchema = baseUrlSchema.notOneOf(state.rssForm.feedUrls);
-    const getUniqueId = () => uniqueId();
+        uniqUrlsSchema.validate(data.url)
+          .then(() => {
+            view.rssForm.status = 'sending';
 
-    uniqUrlsSchema.validate(data.url)
-      .then(() => {
-        view.rssForm.state = 'sending';
+            const link = getProxy(data.url);
+            axios.get(link)
+              .then((response) => {
+                const xmlDoc = parser(response.data.contents);
 
-        const link = `https://allorigins.hexlet.app/get?disableCache=true&url=${encodeURIComponent(data.url)}`;
-        axios.get(link)
-          .then((response) => {
-            const xmlDoc = parser(response.data.contents);
+                if (xmlDoc) { // Valid RSS feed
+                  const { feed, posts } = xmlDoc;
+                  feed.id = uniqueId();
+                  feed.url = data.url;
+                  const postsWithId = posts.map((post) => {
+                    const postWithId = post;
+                    postWithId.itemId = uniqueId();
+                    return postWithId;
+                  });
 
-            if (xmlDoc) { // Valid RSS feed
-              const { feed } = xmlDoc;
-              feed.id = getUniqueId();
-              const { posts } = xmlDoc;
-              // eslint-disable-next-line no-return-assign
-              posts.forEach((post) => post.itemId = getUniqueId());
+                  state.feeds.unshift(feed);
+                  state.posts.unshift(...postsWithId);
+                  state.rssForm.error = '';
+                  view.rssForm.valid = true;
+                  state.rssForm.valid = null;
+                  view.rssForm.status = 'finished';
+                  watchVisitedPost(view);
+                  fetchNewData(state, view);
+                } else { // Invalid RSS feed
+                  state.rssForm.error = 'noValidRss';
+                  view.rssForm.valid = false;
+                  state.rssForm.valid = null;
+                  view.rssForm.status = 'finished';
+                }
+              })
+              .catch((error) => {
+                console.log(error.message, 'Ошибка сети');
 
-              state.feeds.unshift(feed);
-              state.posts.unshift(...posts);
-              state.rssForm.feedUrls.push(data.url);
-              state.rssForm.error = '';
-              view.rssForm.valid = true;
-              state.rssForm.valid = null;
-              view.rssForm.state = 'finished';
-              watchVisitedPost(view);
-              fetchNewData(state, getUniqueId, view);
-            } else { // Invalid RSS feed
-              state.rssForm.error = 'noValidRss';
-              view.rssForm.valid = false;
-              state.rssForm.valid = null;
-              view.rssForm.state = 'finished';
-            }
+                state.rssForm.error = 'networkError';
+                view.rssForm.valid = false;
+                state.rssForm.valid = null;
+                view.rssForm.status = 'finished';
+              });
           })
           .catch((error) => {
-            console.log(error.message, 'Ошибка сети');
+            console.log(error, error.message);
 
-            state.rssForm.error = 'networkError';
+            state.rssForm.error = error.message;
             view.rssForm.valid = false;
             state.rssForm.valid = null;
-            view.rssForm.state = 'finished';
           });
-      })
-      .catch((err) => {
-        const [currentError] = err.message.split(':');
-        let errorMessage = '';
-
-        switch (currentError) {
-          case 'this must be a valid URL':
-            errorMessage = 'invalidUrl';
-            break;
-
-          case 'this must not be one of the following values':
-            errorMessage = 'alreadyExist';
-            break;
-
-          default:
-            break;
-        }
-        console.log(err.message, errorMessage);
-
-        state.rssForm.error = errorMessage;
-        view.rssForm.valid = false;
-        state.rssForm.valid = null;
       });
-  });
+    })
+    .catch((error) => console.log(error.message));
 };
