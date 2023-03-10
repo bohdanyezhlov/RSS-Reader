@@ -1,9 +1,8 @@
 import onChange from 'on-change';
-import { last } from 'lodash';
+import { last, includes } from 'lodash';
 
 const watchVisitedPosts = (state, { elements }) => {
-  // console.log(state, elements, 'watchVisitedPosts');
-  const visitedId = last(state.ui.posts.visitedId);
+  const visitedId = last(state.ui.posts.visitedIds);
   const postLink = document.querySelector(`a[data-id="${visitedId}"]`);
   postLink.classList.remove('fw-bold');
   postLink.classList.add('fw-normal', 'link-secondary');
@@ -35,8 +34,8 @@ const renderPostsItems = (state, container, i18nInstance) => {
     li.classList.add('list-group-item', 'd-flex', 'justify-content-between', 'align-items-start', 'border-0', 'border-end-0');
 
     const link = document.createElement('a');
-    const visitedLinks = state.ui.posts.visitedId;
-    if (visitedLinks.includes(item.itemId)) {
+    const visitedPosts = state.ui.posts.visitedIds;
+    if (includes(visitedPosts, item.itemId)) {
       link.classList.add('fw-normal', 'link-secondary');
     } else {
       link.classList.add('fw-bold');
@@ -123,54 +122,77 @@ const renderSuccess = ({ elements }, i18nInstance) => {
   elements.feedback.classList.remove('text-danger');
 };
 
-const renderError = (state, { elements }, i18nInstance) => {
-  elements.feedback.textContent = i18nInstance.t(state.rssForm.error);
-  elements.feedback.classList.add('text-danger');
-  elements.feedback.classList.remove('text-success');
-  elements.input.classList.add('is-invalid');
-};
-
-const toggleDisableControllers = (state, { elements }) => {
-  const { status } = state.rssForm.status;
-
-  if (status === 'sending') {
-    elements.input.readOnly = true;
-    elements.button.disabled = true;
-  }
-
-  if (status === 'finished') {
-    elements.input.readOnly = false;
-    elements.button.disabled = false;
+const renderError = (state, { elements }, i18nInstance, curValue) => {
+  if (curValue === null) { // FIXME: is it ok?
+    elements.input.classList.remove('is-invalid');
+  } else {
+    elements.feedback.textContent = i18nInstance.t(state.form.error);
+    elements.feedback.classList.add('text-danger');
+    elements.feedback.classList.remove('text-success');
+    elements.input.classList.add('is-invalid');
   }
 };
 
-export default (state, { elements }, i18nInstance) => onChange(state, (path, current) => {
-  console.log(state, 'path', path, 'current', current);
-  switch (path) {
-    case 'rssForm.status': // sending / finished
-      toggleDisableControllers(state, { elements });
-      break;
-
-    case 'rssForm.valid':
-      if (current) { // valid
-        renderSuccess({ elements }, i18nInstance);
-        renderFeeds(state, { elements }, i18nInstance);
-        renderPosts(state, { elements }, i18nInstance);
-      } else { // invalid
-        renderError(state, { elements }, i18nInstance);
-      }
-      break;
-
-    case 'ui.posts.visitedId':
-      watchVisitedPosts(state, { elements });
-      break;
-
-    case 'posts':
+const handleUpdateProcessState = (state, { elements }, i18nInstance, processState) => {
+  switch (processState) {
+    case 'received':
       renderPosts(state, { elements }, i18nInstance);
-      watchVisitedPosts(state, { elements });
       break;
 
     default:
-      break;
+      throw new Error(`Unknown process state: ${processState}`);
   }
-});
+};
+
+const handleFormProcessState = (state, { elements }, i18nInstance, processState) => {
+  switch (processState) {
+    case 'receiving': // FIXME: why doesn't it work when remove class
+      // elements.input.classList.remove('is-invalid');
+      elements.feedback.textContent = '';
+      elements.input.readOnly = true;
+      elements.button.disabled = true;
+      break;
+
+    case 'error':
+      elements.input.readOnly = false;
+      elements.button.disabled = false;
+      break;
+
+    case 'received':
+      renderSuccess({ elements }, i18nInstance);
+      renderFeeds(state, { elements }, i18nInstance);
+      renderPosts(state, { elements }, i18nInstance);
+      elements.input.readOnly = false;
+      elements.button.disabled = false;
+      break;
+
+    default:
+      throw new Error(`Unknown process state: ${processState}`);
+  }
+};
+
+export default (state, { elements }, i18nInstance) => (
+  onChange(state, (path, curValue) => {
+    // console.log(state, 'path', path, 'current', curValue);
+    switch (path) {
+      case 'form.processState':
+        handleFormProcessState(state, { elements }, i18nInstance, curValue);
+        break;
+
+      case 'form.error':
+        renderError(state, { elements }, i18nInstance, curValue);
+        break;
+
+      case 'update.processState':
+        handleUpdateProcessState(state, { elements }, i18nInstance, curValue);
+        break;
+
+      case 'ui.posts.visitedIds':
+        watchVisitedPosts(state, { elements });
+        break;
+
+      default:
+        break;
+    }
+  })
+);

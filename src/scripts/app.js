@@ -2,17 +2,21 @@ import * as yup from 'yup';
 import 'bootstrap';
 import i18n from 'i18next';
 import axios from 'axios';
-import { uniqueId } from 'lodash';
+import { uniqueId, includes } from 'lodash';
 import resources from './locales/index';
-import render from './render';
+import watch from './render';
 import parser from './parser/index';
 
-const watchVisitedPost = (view) => {
+const watchVisitedPost = (watchedState) => {
   document.addEventListener('click', (e) => {
     const visitedId = e.target.getAttribute('data-id');
 
     if (visitedId) {
-      view.ui.posts.visitedId.push(visitedId);
+      const isInclude = includes(watchedState.ui.posts.visitedIds, visitedId);
+
+      if (!isInclude) {
+        watchedState.ui.posts.visitedIds.push(visitedId);
+      }
     }
   });
 };
@@ -20,55 +24,61 @@ const watchVisitedPost = (view) => {
 const getProxyLink = (url) => `https://allorigins.hexlet.app/get?disableCache=true&url=${encodeURIComponent(url)}`;
 const delay = 5000;
 
-const fetchNewData = (state, view) => {
-  const urls = state.feeds.map(({ url }) => url);
+const fetchNewData = (watchedState) => {
+  const urls = watchedState.feeds.map(({ url }) => url);
   const promises = urls.map((url) => {
     const link = getProxyLink(url);
 
     return axios.get(link)
       .then((response) => {
+        watchedState.update.processState = 'receiving'; // FIXME: before or inside promise?
+
         const xmlDoc = parser(response.data.contents);
 
-        // if (xmlDoc) { ?
+        // if (xmlDoc) { // FIXME:
         const { posts } = xmlDoc;
         const newPosts = posts
-          .filter((obj2) => !state.posts
+          .filter((obj2) => !watchedState.posts
             .some((obj1) => obj1.itemTitle === obj2.itemTitle));
 
         if (newPosts.length) {
-          const postsWithId = posts.map((post) => {
+          const postsWithId = newPosts.map((post) => {
             post.itemId = uniqueId();
             return post;
           });
-          view.posts.unshift(...postsWithId);
+
+          watchedState.posts.unshift(...postsWithId);
+          watchedState.update.processState = 'received';
         }
         // }
       })
       .catch((e) => (
-        e.message // invalid rss?
+        e.message // FIXME: what to do with failed requests?
       ));
   });
 
   Promise.all(promises).then(() => {
-    setTimeout(() => fetchNewData(state, view), delay);
+    setTimeout(() => fetchNewData(watchedState), delay);
   });
 };
 
 export default () => {
   const defaultLanguage = 'ru';
 
-  const state = {
+  const initialState = {
     lng: defaultLanguage,
-    rssForm: {
-      valid: null,
-      status: null,
+    form: {
+      processState: 'filling',
       error: null,
+    },
+    update: {
+      processState: null,
     },
     feeds: [],
     posts: [],
     ui: {
       posts: {
-        visitedId: [],
+        visitedIds: [],
       },
     },
   };
@@ -80,7 +90,7 @@ export default () => {
     resources,
   })
     .then(() => {
-      const elements = {
+      const elements = { // FIXME: before initialState?
         form: document.querySelector('form'),
         input: document.querySelector('#url-input'),
         button: document.querySelector('button[type="submit"]'),
@@ -92,7 +102,7 @@ export default () => {
         modalLink: document.querySelector('.full-article'),
       };
 
-      const view = render(state, { elements }, i18nInstance);
+      const watchedState = watch(initialState, { elements }, i18nInstance);
 
       elements.form.addEventListener('submit', (e) => {
         e.preventDefault();
@@ -110,19 +120,20 @@ export default () => {
           },
         });
         const baseUrlSchema = yup.string().url().required();
-        const urls = state.feeds.map(({ url }) => url);
+        const urls = watchedState.feeds.map(({ url }) => url);
         const uniqUrlsSchema = baseUrlSchema.notOneOf(urls);
+
+        watchedState.form.processState = 'receiving'; // FIXME: before or inside promise
+        watchedState.form.error = null;
 
         uniqUrlsSchema.validate(data.url)
           .then(() => {
-            view.rssForm.status = 'sending';
-
             const link = getProxyLink(data.url);
             axios.get(link)
               .then((response) => {
                 const xmlDoc = parser(response.data.contents);
 
-                if (xmlDoc) { // Valid RSS feed
+                if (xmlDoc) { // FIXME:
                   const { feed, posts } = xmlDoc;
                   feed.id = uniqueId();
                   feed.url = data.url;
@@ -132,36 +143,27 @@ export default () => {
                     return postWithId;
                   });
 
-                  state.feeds.unshift(feed);
-                  state.posts.unshift(...postsWithId);
-                  state.rssForm.error = '';
-                  view.rssForm.valid = true;
-                  state.rssForm.valid = null;
-                  view.rssForm.status = 'finished';
-                  watchVisitedPost(view);
-                  fetchNewData(state, view);
-                } else { // Invalid RSS feed
-                  state.rssForm.error = 'noValidRss';
-                  view.rssForm.valid = false;
-                  state.rssForm.valid = null;
-                  view.rssForm.status = 'finished';
+                  watchedState.feeds.unshift(feed);
+                  watchedState.posts.unshift(...postsWithId);
+                  watchedState.form.processState = 'received';
+
+                  watchVisitedPost(watchedState);
+                  fetchNewData(watchedState);
+                } else {
+                  watchedState.form.processState = 'error';
+                  watchedState.form.error = 'noValidRss';
                 }
               })
               .catch((error) => {
-                console.log(error.message, 'Ошибка сети или ?');
-
-                state.rssForm.error = 'networkError';
-                view.rssForm.valid = false;
-                state.rssForm.valid = null;
-                view.rssForm.status = 'finished';
+                console.log(error.message, 'Ошибка сети или invalidRSS'); // FIXME: networkError || undefined
+                watchedState.form.processState = 'error';
+                watchedState.form.error = 'networkError';
               });
           })
           .catch((error) => {
             console.log(error, error.message);
-
-            state.rssForm.error = error.message;
-            view.rssForm.valid = false;
-            state.rssForm.valid = null;
+            watchedState.form.processState = 'error';
+            watchedState.form.error = error.message;
           });
       });
     })
