@@ -22,6 +22,7 @@ const watchVisitedPost = (watchedState) => {
 };
 
 const getProxyLink = (url) => `https://allorigins.hexlet.app/get?disableCache=true&url=${encodeURIComponent(url)}`;
+const requestTimeout = 15000;
 const delay = 5000;
 
 const fetchNewData = (watchedState) => {
@@ -29,13 +30,10 @@ const fetchNewData = (watchedState) => {
   const promises = urls.map((url) => {
     const link = getProxyLink(url);
 
-    return axios.get(link)
+    return axios.get(link, { timeout: requestTimeout })
       .then((response) => {
-        watchedState.update.processState = 'receiving'; // FIXME: before or inside promise?
-
         const xmlDoc = parser(response.data.contents);
 
-        // if (xmlDoc) { // FIXME:
         const { posts } = xmlDoc;
         const newPosts = posts
           .filter((obj2) => !watchedState.posts
@@ -48,31 +46,41 @@ const fetchNewData = (watchedState) => {
           });
 
           watchedState.posts.unshift(...postsWithId);
-          watchedState.update.processState = 'received';
         }
-        // }
       })
-      .catch((e) => (
-        e.message // FIXME: what to do with failed requests?
-      ));
+      .catch(() => {
+        // console.log(error.message); // FIXME: what to do with failed requests?
+      });
   });
 
-  Promise.all(promises).then(() => {
+  Promise.all(promises).finally(() => {
     setTimeout(() => fetchNewData(watchedState), delay);
   });
 };
 
 export default () => {
+  const elements = {
+    form: document.querySelector('.rss-form'),
+    input: document.querySelector('#url-input'),
+    button: document.querySelector('.rss-form button[type="submit"]'),
+    feedback: document.querySelector('.feedback'),
+    posts: document.querySelector('.posts'),
+    feeds: document.querySelector('.feeds'),
+    modalHeader: document.querySelector('.modal-title'),
+    modalText: document.querySelector('.modal-body'),
+    modalLink: document.querySelector('.full-article'),
+  };
+
   const defaultLanguage = 'ru';
 
   const initialState = {
     lng: defaultLanguage,
     form: {
-      processState: 'filling',
       error: null,
     },
-    update: {
-      processState: null,
+    loadingProcess: {
+      status: null,
+      error: null,
     },
     feeds: [],
     posts: [],
@@ -90,18 +98,6 @@ export default () => {
     resources,
   })
     .then(() => {
-      const elements = { // FIXME: before initialState?
-        form: document.querySelector('form'),
-        input: document.querySelector('#url-input'),
-        button: document.querySelector('button[type="submit"]'),
-        feedback: document.querySelector('.feedback'),
-        posts: document.querySelector('.posts'),
-        feeds: document.querySelector('.feeds'),
-        modalHeader: document.querySelector('.modal-title'),
-        modalText: document.querySelector('.modal-body'),
-        modalLink: document.querySelector('.full-article'),
-      };
-
       const watchedState = watch(initialState, { elements }, i18nInstance);
 
       elements.form.addEventListener('submit', (e) => {
@@ -123,46 +119,42 @@ export default () => {
         const urls = watchedState.feeds.map(({ url }) => url);
         const uniqUrlsSchema = baseUrlSchema.notOneOf(urls);
 
-        watchedState.form.processState = 'receiving'; // FIXME: before or inside promise
-        watchedState.form.error = null;
-
         uniqUrlsSchema.validate(data.url)
           .then(() => {
             const link = getProxyLink(data.url);
-            axios.get(link)
+            watchedState.loadingProcess.status = 'receiving';
+            watchedState.loadingProcess.error = null;
+            watchedState.form.error = null;
+            axios.get(link, { timeout: requestTimeout })
               .then((response) => {
                 const xmlDoc = parser(response.data.contents);
+                const { feed, posts } = xmlDoc;
 
-                if (xmlDoc) { // FIXME:
-                  const { feed, posts } = xmlDoc;
-                  feed.id = uniqueId();
-                  feed.url = data.url;
-                  const postsWithId = posts.map((post) => {
-                    const postWithId = post;
-                    postWithId.itemId = uniqueId();
-                    return postWithId;
-                  });
+                feed.id = uniqueId(); // FIXME: generate ID even if request failed
+                feed.url = data.url;
 
-                  watchedState.feeds.unshift(feed);
-                  watchedState.posts.unshift(...postsWithId);
-                  watchedState.form.processState = 'received';
+                const postsWithId = posts.map((post) => {
+                  const postWithId = post;
+                  postWithId.itemId = uniqueId();
+                  return postWithId;
+                });
 
-                  watchVisitedPost(watchedState);
-                  fetchNewData(watchedState);
-                } else {
-                  watchedState.form.processState = 'error';
-                  watchedState.form.error = 'noValidRss';
-                }
+                watchedState.feeds.unshift(feed);
+                watchedState.posts.unshift(...postsWithId);
+                watchedState.loadingProcess.status = 'received';
+
+                watchVisitedPost(watchedState);
+                fetchNewData(watchedState);
               })
               .catch((error) => {
-                console.log(error.message, 'Ошибка сети или invalidRSS'); // FIXME: networkError || undefined
-                watchedState.form.processState = 'error';
-                watchedState.form.error = 'networkError';
+                const errorType = axios.isAxiosError(error) ? 'networkError' : 'invalidRss';
+                watchedState.loadingProcess.status = 'failed';
+                watchedState.loadingProcess.error = errorType;
+                console.log(i18nInstance.t(errorType));
               });
           })
           .catch((error) => {
-            console.log(error, error.message);
-            watchedState.form.processState = 'error';
+            console.log(error.message);
             watchedState.form.error = error.message;
           });
       });

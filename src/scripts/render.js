@@ -122,69 +122,63 @@ const renderSuccess = ({ elements }, i18nInstance) => {
   elements.feedback.classList.remove('text-danger');
 };
 
-const renderError = (state, { elements }, i18nInstance, curValue) => {
-  if (curValue === null) { // FIXME: is it ok?
-    elements.input.classList.remove('is-invalid');
-  } else {
-    elements.feedback.textContent = i18nInstance.t(state.form.error);
+const renderError = ({ elements }, i18nInstance, curValue) => {
+  if (curValue !== null) {
+    elements.feedback.textContent = i18nInstance.t(curValue);
     elements.feedback.classList.add('text-danger');
     elements.feedback.classList.remove('text-success');
     elements.input.classList.add('is-invalid');
   }
 };
 
-const handleUpdateProcessState = (state, { elements }, i18nInstance, processState) => {
-  switch (processState) {
-    case 'received':
-      renderPosts(state, { elements }, i18nInstance);
-      break;
-
-    default:
-      throw new Error(`Unknown process state: ${processState}`);
-  }
-};
-
-const handleFormProcessState = (state, { elements }, i18nInstance, processState) => {
-  switch (processState) {
-    case 'receiving': // FIXME: why doesn't it work when remove class
-      // elements.input.classList.remove('is-invalid');
+const handleLoadingProcessStatus = ({ elements }, i18nInstance, processStatus) => {
+  switch (processStatus) {
+    case 'receiving':
+      elements.input.classList.remove('is-invalid');
       elements.feedback.textContent = '';
       elements.input.readOnly = true;
       elements.button.disabled = true;
       break;
 
-    case 'error':
+    case 'failed':
+      renderError({ elements }, i18nInstance, processStatus);
       elements.input.readOnly = false;
       elements.button.disabled = false;
       break;
 
     case 'received':
       renderSuccess({ elements }, i18nInstance);
-      renderFeeds(state, { elements }, i18nInstance);
-      renderPosts(state, { elements }, i18nInstance);
       elements.input.readOnly = false;
       elements.button.disabled = false;
       break;
 
     default:
-      throw new Error(`Unknown process state: ${processState}`);
+      throw new Error(`Unknown process status: ${processStatus}`);
   }
 };
 
 export default (state, { elements }, i18nInstance) => (
   onChange(state, (path, curValue) => {
-    // console.log(state, 'path', path, 'current', curValue);
+    console.log(state, 'path', path, 'current', curValue);
     switch (path) {
-      case 'form.processState':
-        handleFormProcessState(state, { elements }, i18nInstance, curValue);
-        break;
-
       case 'form.error':
-        renderError(state, { elements }, i18nInstance, curValue);
+        renderError({ elements }, i18nInstance, curValue);
         break;
 
-      case 'update.processState':
-        handleUpdateProcessState(state, { elements }, i18nInstance, curValue);
+      case 'loadingProcess.status':
+        handleLoadingProcessStatus({ elements }, i18nInstance, curValue);
+        break;
+
+      case 'loadingProcess.error':
+        renderError({ elements }, i18nInstance, curValue);
+        break;
+
+      case 'feeds':
+        renderFeeds(state, { elements }, i18nInstance);
+        break;
+
+      case 'posts':
+        renderPosts(state, { elements }, i18nInstance);
         break;
 
       case 'ui.posts.visitedIds':
