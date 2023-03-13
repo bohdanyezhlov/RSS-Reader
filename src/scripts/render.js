@@ -13,14 +13,14 @@ const watchVisitedPosts = (state, { elements }) => {
   elements.modalLink.setAttribute('href', post.itemLink);
 };
 
-const renderHeader = (container, key, i18nInstance) => {
+const renderHeader = (container, title) => {
   const wrapper = document.createElement('div');
   wrapper.classList.add('card-body');
   container.append(wrapper);
 
   const header = document.createElement('h2');
   header.classList.add('card-title', 'h4');
-  header.textContent = i18nInstance.t(key);
+  header.textContent = title;
   wrapper.append(header);
 };
 
@@ -71,7 +71,8 @@ const renderPosts = (state, { elements }, i18nInstance) => {
   wrapper.classList.add('card', 'border-0');
   container.append(wrapper);
 
-  renderHeader(wrapper, 'posts', i18nInstance);
+  const title = i18nInstance.t('posts');
+  renderHeader(wrapper, title);
   renderPostsItems(state, wrapper, i18nInstance);
 };
 
@@ -109,7 +110,8 @@ const renderFeeds = (state, { elements }, i18nInstance) => {
   wrapper.classList.add('card', 'border-0');
   container.append(wrapper);
 
-  renderHeader(wrapper, 'feeds', i18nInstance);
+  const title = i18nInstance.t('feeds');
+  renderHeader(wrapper, title);
   renderFeedsItems(state, wrapper);
 };
 

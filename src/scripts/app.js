@@ -12,9 +12,9 @@ const watchVisitedPost = (watchedState) => {
     const visitedId = e.target.getAttribute('data-id');
 
     if (visitedId) {
-      const isInclude = includes(watchedState.ui.posts.visitedIds, visitedId);
+      const isIncludes = includes(watchedState.ui.posts.visitedIds, visitedId);
 
-      if (!isInclude) {
+      if (!isIncludes) {
         watchedState.ui.posts.visitedIds.push(visitedId);
       }
     }
@@ -125,12 +125,13 @@ export default () => {
             watchedState.loadingProcess.status = 'receiving';
             watchedState.loadingProcess.error = null;
             watchedState.form.error = null;
+
             axios.get(link, { timeout: requestTimeout })
               .then((response) => {
                 const xmlDoc = parser(response.data.contents);
                 const { feed, posts } = xmlDoc;
 
-                feed.id = uniqueId(); // FIXME: generate ID even if request failed
+                feed.id = uniqueId();
                 feed.url = data.url;
 
                 const postsWithId = posts.map((post) => {
@@ -147,15 +148,21 @@ export default () => {
                 fetchNewData(watchedState);
               })
               .catch((error) => {
-                const errorType = axios.isAxiosError(error) ? 'networkError' : 'invalidRss';
+                let errorType = null;
+                if (error.message === 'parsererror') {
+                  errorType = 'invalidRss';
+                } else {
+                  errorType = axios.isAxiosError(error) ? 'networkError' : 'undefinedError';
+                }
+
                 watchedState.loadingProcess.status = 'failed';
                 watchedState.loadingProcess.error = errorType;
                 console.log(i18nInstance.t(errorType));
               });
           })
           .catch((error) => {
-            console.log(error.message);
             watchedState.form.error = error.message;
+            console.log(error.message);
           });
       });
     })
