@@ -8,20 +8,20 @@ export default (data) => {
   }
 
   const feed = {
-    channelTitle: xmlDoc.querySelector('title').textContent,
-    channelDescription: xmlDoc.querySelector('description').textContent,
+    title: xmlDoc.querySelector('title').textContent,
+    description: xmlDoc.querySelector('description').textContent,
   };
 
   const items = xmlDoc.querySelectorAll('item');
   const posts = Array.from(items).map((item) => {
-    const itemTitle = item.querySelector('title').textContent;
-    const itemDescription = item.querySelector('description').textContent;
-    const itemLink = item.querySelector('link').textContent;
+    const title = item.querySelector('title').textContent;
+    const description = item.querySelector('description').textContent;
+    const link = item.querySelector('link').textContent;
 
     return {
-      itemTitle,
-      itemDescription,
-      itemLink,
+      title,
+      description,
+      link,
     };
   });
 

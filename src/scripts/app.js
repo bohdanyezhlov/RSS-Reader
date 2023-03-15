@@ -2,23 +2,28 @@ import * as yup from 'yup';
 import 'bootstrap';
 import i18n from 'i18next';
 import axios from 'axios';
-import { uniqueId, includes } from 'lodash';
-import resources from './locales/index';
+import { uniqueId, differenceWith } from 'lodash';
+import resources, { settings } from './locales/index';
 import watch from './render';
 import parser from './parser/index';
 
-const watchVisitedPost = (watchedState) => {
-  document.addEventListener('click', (e) => {
+const watchVisitedPost = (watchedState, { elements }) => {
+  elements.posts.addEventListener('click', (e) => {
     const visitedId = e.target.getAttribute('data-id');
 
     if (visitedId) {
-      const isIncludes = includes(watchedState.ui.posts.visitedIds, visitedId);
-
-      if (!isIncludes) {
-        watchedState.ui.posts.visitedIds.push(visitedId);
-      }
+      const uniqIds = new Set(watchedState.ui.posts.visitedIds);
+      uniqIds.add(visitedId);
+      watchedState.ui.posts.visitedIds = [...uniqIds];
     }
   });
+};
+
+const getErrorType = (error) => {
+  if (error.message === 'parsererror') {
+    return 'invalidRss';
+  }
+  return axios.isAxiosError(error) ? 'networkError' : 'undefinedError';
 };
 
 const getProxyLink = (url) => `https://allorigins.hexlet.app/get?disableCache=true&url=${encodeURIComponent(url)}`;
@@ -35,28 +40,24 @@ const fetchNewData = (watchedState) => {
         const xmlDoc = parser(response.data.contents);
 
         const { posts } = xmlDoc;
-        const newPosts = posts
-          .filter((obj2) => !watchedState.posts
-            .some((obj1) => obj1.itemTitle === obj2.itemTitle));
+        const newPosts = differenceWith(posts, watchedState.posts, (obj1, obj2) => (
+          obj1.title === obj2.title))
+          .map((post) => ({
+            ...post,
+            id: uniqueId(),
+          }));
 
-        if (newPosts.length) {
-          const postsWithId = newPosts.map((post) => {
-            post.itemId = uniqueId();
-            return post;
-          });
-
-          watchedState.posts.unshift(...postsWithId);
-        }
+        watchedState.posts.unshift(...newPosts);
       })
-      .catch(() => {
-        // console.log(error.message); // FIXME: what to do with failed requests?
-      });
+      .catch((error) => console.log(error.message));
   });
 
   Promise.all(promises).finally(() => {
     setTimeout(() => fetchNewData(watchedState), delay);
   });
 };
+
+yup.setLocale(settings);
 
 export default () => {
   const elements = {
@@ -107,14 +108,6 @@ export default () => {
           url: newUrl,
         };
 
-        yup.setLocale({
-          string: {
-            url: i18nInstance.t('invalidUrl'),
-          },
-          mixed: {
-            notOneOf: i18nInstance.t('alreadyExist'),
-          },
-        });
         const baseUrlSchema = yup.string().url().required();
         const urls = watchedState.feeds.map(({ url }) => url);
         const uniqUrlsSchema = baseUrlSchema.notOneOf(urls);
@@ -134,35 +127,27 @@ export default () => {
                 feed.id = uniqueId();
                 feed.url = data.url;
 
-                const postsWithId = posts.map((post) => {
-                  const postWithId = post;
-                  postWithId.itemId = uniqueId();
-                  return postWithId;
-                });
+                const postsWithId = posts.map((post) => ({
+                  ...post,
+                  id: uniqueId(),
+                }));
 
                 watchedState.feeds.unshift(feed);
                 watchedState.posts.unshift(...postsWithId);
                 watchedState.loadingProcess.status = 'received';
 
-                watchVisitedPost(watchedState);
+                watchVisitedPost(watchedState, { elements });
                 fetchNewData(watchedState);
               })
               .catch((error) => {
-                let errorType = null;
-                if (error.message === 'parsererror') {
-                  errorType = 'invalidRss';
-                } else {
-                  errorType = axios.isAxiosError(error) ? 'networkError' : 'undefinedError';
-                }
-
                 watchedState.loadingProcess.status = 'failed';
-                watchedState.loadingProcess.error = errorType;
-                console.log(i18nInstance.t(errorType));
+                watchedState.loadingProcess.error = getErrorType(error);
+                console.log(i18nInstance.t(getErrorType(error)));
               });
           })
           .catch((error) => {
             watchedState.form.error = error.message;
-            console.log(error.message);
+            console.log(i18nInstance.t(error.message));
           });
       });
     })
