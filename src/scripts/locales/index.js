@@ -1,5 +1,3 @@
-import ru from './ru.js';
-import settings from './settings.js';
+import ru from './ru';
 
-export { settings };
 export default { ru };

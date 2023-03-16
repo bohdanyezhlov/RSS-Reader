@@ -3,7 +3,8 @@ import 'bootstrap';
 import i18n from 'i18next';
 import axios from 'axios';
 import { uniqueId, differenceWith } from 'lodash';
-import resources, { settings } from './locales/index';
+import resources from './locales/index';
+import yupLocale from './locales/yupLocale';
 import watch from './render';
 import parser from './parser/index';
 
@@ -12,9 +13,7 @@ const watchVisitedPost = (watchedState, { elements }) => {
     const visitedId = e.target.getAttribute('data-id');
 
     if (visitedId) {
-      const uniqIds = new Set(watchedState.ui.posts.visitedIds);
-      uniqIds.add(visitedId);
-      watchedState.ui.posts.visitedIds = [...uniqIds];
+      watchedState.ui.posts.visitedIds.add(visitedId);
     }
   });
 };
@@ -57,8 +56,6 @@ const fetchNewData = (watchedState) => {
   });
 };
 
-yup.setLocale(settings);
-
 export default () => {
   const elements = {
     form: document.querySelector('.rss-form'),
@@ -87,7 +84,7 @@ export default () => {
     posts: [],
     ui: {
       posts: {
-        visitedIds: [],
+        visitedIds: new Set(),
       },
     },
   };
@@ -99,6 +96,7 @@ export default () => {
     resources,
   })
     .then(() => {
+      yup.setLocale(yupLocale);
       const watchedState = watch(initialState, { elements }, i18nInstance);
 
       elements.form.addEventListener('submit', (e) => {

@@ -1,9 +1,9 @@
 import onChange from 'on-change';
-import { last, includes } from 'lodash';
+import { last } from 'lodash';
 
 export default (state, { elements }, i18nInstance) => {
   const watchVisitedPosts = () => {
-    const visitedId = last(state.ui.posts.visitedIds);
+    const visitedId = last([...state.ui.posts.visitedIds]);
     const postLink = document.querySelector(`a[data-id="${visitedId}"]`);
     postLink.classList.remove('fw-bold');
     postLink.classList.add('fw-normal', 'link-secondary');
@@ -36,7 +36,7 @@ export default (state, { elements }, i18nInstance) => {
 
       const link = document.createElement('a');
       const visitedPosts = state.ui.posts.visitedIds;
-      if (includes(visitedPosts, post.id)) {
+      if (visitedPosts.has(post.id)) {
         link.classList.add('fw-normal', 'link-secondary');
       } else {
         link.classList.add('fw-bold');
@@ -161,7 +161,6 @@ export default (state, { elements }, i18nInstance) => {
   };
 
   const watchedState = onChange(state, (path, value) => {
-    console.log(path, value);
     switch (path) {
       case 'form.error':
         renderError(value);
