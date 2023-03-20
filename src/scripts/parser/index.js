@@ -4,7 +4,9 @@ export default (data) => {
   const errorNode = xmlDoc.querySelector('parsererror');
 
   if (errorNode) {
-    throw new Error('parsererror');
+    const error = new Error(errorNode.textContent);
+    error.isParsingError = true;
+    throw error;
   }
 
   const feed = {
