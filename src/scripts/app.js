@@ -8,6 +8,13 @@ import yupLocale from './locales/yupLocale';
 import watch from './render';
 import parser from './parser/index';
 
+const validate = (url, urls) => {
+  const baseUrlSchema = yup.string().url().required();
+  const uniqUrlsSchema = baseUrlSchema.notOneOf(urls);
+
+  return uniqUrlsSchema.validate(url);
+};
+
 const watchVisitedPost = (watchedState, { elements }) => {
   elements.posts.addEventListener('click', (e) => {
     const visitedId = e.target.getAttribute('data-id');
@@ -19,13 +26,19 @@ const watchVisitedPost = (watchedState, { elements }) => {
 };
 
 const getErrorType = (error) => {
-  if (error.message === 'parsererror') {
+  if (error.isParsingError) {
     return 'invalidRss';
   }
   return axios.isAxiosError(error) ? 'networkError' : 'undefinedError';
 };
 
-const getProxyLink = (url) => `https://allorigins.hexlet.app/get?disableCache=true&url=${encodeURIComponent(url)}`;
+const getProxyLink = (url) => {
+  const urlWithProxy = new URL('/get', 'https://allorigins.hexlet.app');
+  urlWithProxy.searchParams.set('url', url);
+  urlWithProxy.searchParams.set('disableCache', 'true');
+  return urlWithProxy.toString();
+};
+
 const requestTimeout = 15000;
 const delay = 5000;
 
@@ -72,7 +85,6 @@ export default () => {
   const defaultLanguage = 'ru';
 
   const initialState = {
-    lng: defaultLanguage,
     form: {
       error: null,
     },
@@ -105,18 +117,15 @@ export default () => {
         const data = {
           url: newUrl,
         };
-
-        const baseUrlSchema = yup.string().url().required();
         const urls = watchedState.feeds.map(({ url }) => url);
-        const uniqUrlsSchema = baseUrlSchema.notOneOf(urls);
 
-        uniqUrlsSchema.validate(data.url)
+        watchedState.loadingProcess.status = 'receiving';
+        watchedState.loadingProcess.error = null;
+        watchedState.form.error = null;
+
+        validate(data.url, urls)
           .then(() => {
             const link = getProxyLink(data.url);
-            watchedState.loadingProcess.status = 'receiving';
-            watchedState.loadingProcess.error = null;
-            watchedState.form.error = null;
-
             axios.get(link, { timeout: requestTimeout })
               .then((response) => {
                 const xmlDoc = parser(response.data.contents);
@@ -144,6 +153,7 @@ export default () => {
               });
           })
           .catch((error) => {
+            watchedState.loadingProcess.status = 'failed';
             watchedState.form.error = error.message;
             console.log(i18nInstance.t(error.message));
           });
