@@ -1,20 +1,25 @@
 import onChange from 'on-change';
 import { last } from 'lodash';
+import { InitialState, Elements } from './types/interfaces';
 
-export default (state, { elements }, i18nInstance) => {
+export default (
+  state: InitialState,
+  { elements }: { elements: Elements },
+  i18nInstance: { t: (arg0: string) => string | null; },
+) => {
   const watchVisitedPosts = () => {
     const visitedId = last([...state.ui.posts.visitedIds]);
     const postLink = document.querySelector(`a[data-id="${visitedId}"]`);
-    postLink.classList.remove('fw-bold');
-    postLink.classList.add('fw-normal', 'link-secondary');
+    postLink?.classList.remove('fw-bold');
+    postLink?.classList.add('fw-normal', 'link-secondary');
 
-    const post = state.posts.find(({ id }) => id === visitedId);
+    const post = state.posts.find(({ id }) => parseInt(id, 10) === visitedId);
     elements.modalHeader.textContent = post.title;
     elements.modalText.textContent = post.description;
     elements.modalLink.setAttribute('href', post.link);
   };
 
-  const renderHeader = (container, title) => {
+  const renderHeader = (container: HTMLElement, title: string | null) => {
     const wrapper = document.createElement('div');
     wrapper.classList.add('card-body');
     container.append(wrapper);
@@ -25,7 +30,7 @@ export default (state, { elements }, i18nInstance) => {
     wrapper.append(header);
   };
 
-  const renderPostsItems = (container) => {
+  const renderPostsItems = (container: HTMLElement) => {
     const list = document.createElement('ul');
     list.classList.add('list-group', 'border-0', 'rounded-0');
 
@@ -36,7 +41,7 @@ export default (state, { elements }, i18nInstance) => {
 
       const link = document.createElement('a');
       const visitedPosts = state.ui.posts.visitedIds;
-      if (visitedPosts.has(post.id)) {
+      if (visitedPosts.has(parseInt(post.id, 10))) {
         link.classList.add('fw-normal', 'link-secondary');
       } else {
         link.classList.add('fw-bold');
@@ -77,7 +82,7 @@ export default (state, { elements }, i18nInstance) => {
     renderPostsItems(wrapper);
   };
 
-  const renderFeedsItems = (container) => {
+  const renderFeedsItems = (container: HTMLElement) => {
     const list = document.createElement('ul');
     list.classList.add('list-group', 'border-0', 'rounded-0');
     const feedsItems = state.feeds;
@@ -125,7 +130,7 @@ export default (state, { elements }, i18nInstance) => {
     elements.feedback.classList.remove('text-danger');
   };
 
-  const renderError = (value) => {
+  const renderError = (value: any) => {
     if (value !== null) {
       elements.feedback.textContent = i18nInstance.t(value);
       elements.feedback.classList.add('text-danger');
@@ -134,7 +139,7 @@ export default (state, { elements }, i18nInstance) => {
     }
   };
 
-  const handleLoadingProcessStatus = (processStatus) => {
+  const handleLoadingProcessStatus = (processStatus: any) => {
     switch (processStatus) {
       case 'receiving':
         elements.input.classList.remove('is-invalid');

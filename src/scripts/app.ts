@@ -1,48 +1,51 @@
 import * as yup from 'yup';
 import 'bootstrap';
 import i18n from 'i18next';
-import axios from 'axios';
+import axios, { AxiosError } from 'axios';
 import { uniqueId, differenceWith } from 'lodash';
 import resources from './locales/index';
 import yupLocale from './locales/yupLocale';
 import watch from './render';
 import parser from './parser/index';
+import {
+  Data, InitialState, Elements, ParsingError,
+} from './types/interfaces';
 
-const validate = (url, urls) => {
+const validate = (url: string, urls: string[]) => {
   const baseUrlSchema = yup.string().url().required();
   const uniqUrlsSchema = baseUrlSchema.notOneOf(urls);
 
   return uniqUrlsSchema.validate(url);
 };
 
-const watchVisitedPost = (watchedState, { elements }) => {
-  elements.posts.addEventListener('click', (e) => {
-    const visitedId = e.target.getAttribute('data-id');
+const watchVisitedPost = (watchedState: InitialState, { elements }: { elements: Elements }) => {
+  elements.posts.addEventListener('click', (e: MouseEvent) => {
+    const visitedId = (e.target as Element)?.getAttribute('data-id');
 
     if (visitedId) {
-      watchedState.ui.posts.visitedIds.add(visitedId);
+      watchedState.ui.posts.visitedIds.add(parseInt(visitedId, 10));
     }
   });
 };
 
-const getErrorType = (error) => {
-  if (error.isParsingError) {
+const getErrorType = (error: ParsingError | AxiosError) => {
+  if ('isParsingError' in error && error.isParsingError) {
     return 'invalidRss';
   }
   return axios.isAxiosError(error) ? 'networkError' : 'undefinedError';
 };
 
-const getProxyLink = (url) => {
+const getProxyLink = (url: string) => {
   const urlWithProxy = new URL('/get', 'https://allorigins.hexlet.app');
   urlWithProxy.searchParams.set('url', url);
   urlWithProxy.searchParams.set('disableCache', 'true');
   return urlWithProxy.toString();
 };
 
-const requestTimeout = 15000;
-const delay = 5000;
+const requestTimeout = 15_000;
+const delay = 5_000;
 
-const fetchNewData = (watchedState) => {
+const fetchNewData = (watchedState: InitialState) => {
   const urls = watchedState.feeds.map(({ url }) => url);
   const promises = urls.map((url) => {
     const link = getProxyLink(url);
@@ -70,21 +73,21 @@ const fetchNewData = (watchedState) => {
 };
 
 export default () => {
-  const elements = {
-    form: document.querySelector('.rss-form'),
-    input: document.querySelector('#url-input'),
-    button: document.querySelector('.rss-form button[type="submit"]'),
-    feedback: document.querySelector('.feedback'),
-    posts: document.querySelector('.posts'),
-    feeds: document.querySelector('.feeds'),
-    modalHeader: document.querySelector('.modal-title'),
-    modalText: document.querySelector('.modal-body'),
-    modalLink: document.querySelector('.full-article'),
+  const elements: Elements = {
+    form: document.querySelector('.rss-form')!,
+    input: document.querySelector('#url-input')!,
+    button: document.querySelector('.rss-form button[type="submit"]')!,
+    feedback: document.querySelector('.feedback')!,
+    posts: document.querySelector('.posts')!,
+    feeds: document.querySelector('.feeds')!,
+    modalHeader: document.querySelector('.modal-title')!,
+    modalText: document.querySelector('.modal-body')!,
+    modalLink: document.querySelector('.full-article')!,
   };
 
   const defaultLanguage = 'ru';
 
-  const initialState = {
+  const initialState: InitialState = {
     form: {
       error: null,
     },
@@ -111,13 +114,13 @@ export default () => {
       yup.setLocale(yupLocale);
       const watchedState = watch(initialState, { elements }, i18nInstance);
 
-      elements.form.addEventListener('submit', (e) => {
+      elements.form?.addEventListener('submit', (e) => {
         e.preventDefault();
-        const newUrl = (new FormData(e.target)).get('url');
-        const data = {
-          url: newUrl,
+        const newUrl: string | null = new FormData(e.target as HTMLFormElement).get('url') as string | null;
+        const data: Data = {
+          url: newUrl ?? '',
         };
-        const urls = watchedState.feeds.map(({ url }) => url);
+        const urls = watchedState.feeds.map(({ url }: { url: string }) => url);
 
         watchedState.loadingProcess.status = 'receiving';
         watchedState.loadingProcess.error = null;
@@ -131,12 +134,12 @@ export default () => {
                 const xmlDoc = parser(response.data.contents);
                 const { feed, posts } = xmlDoc;
 
-                feed.id = uniqueId();
+                feed.id = parseInt(uniqueId(), 10); // FIXME: string or number type?
                 feed.url = data.url;
 
                 const postsWithId = posts.map((post) => ({
                   ...post,
-                  id: uniqueId(),
+                  id: uniqueId(), // ?
                 }));
 
                 watchedState.feeds.unshift(feed);
