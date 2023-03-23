@@ -7,9 +7,7 @@ import resources from './locales/index';
 import yupLocale from './locales/yupLocale';
 import watch from './render';
 import parser from './parser/index';
-import {
-  Data, InitialState, Elements, ParsingError,
-} from './types/interfaces';
+import { Data, InitialState, ParsingError } from './types/interfaces';
 
 const validate = (url: string, urls: string[]) => {
   const baseUrlSchema = yup.string().url().required();
@@ -18,12 +16,12 @@ const validate = (url: string, urls: string[]) => {
   return uniqUrlsSchema.validate(url);
 };
 
-const watchVisitedPost = (watchedState: InitialState, { elements }: { elements: Elements }) => {
+const watchVisitedPost = (watchedState: InitialState, { elements }: any) => {
   elements.posts.addEventListener('click', (e: MouseEvent) => {
     const visitedId = (e.target as Element)?.getAttribute('data-id');
 
     if (visitedId) {
-      watchedState.ui.posts.visitedIds.add(parseInt(visitedId, 10));
+      watchedState.ui.posts.visitedIds.add(visitedId);
     }
   });
 };
@@ -50,17 +48,20 @@ const fetchNewData = (watchedState: InitialState) => {
   const promises = urls.map((url) => {
     const link = getProxyLink(url);
 
-    return axios.get(link, { timeout: requestTimeout })
+    return axios
+      .get(link, { timeout: requestTimeout })
       .then((response) => {
         const xmlDoc = parser(response.data.contents);
 
         const { posts } = xmlDoc;
-        const newPosts = differenceWith(posts, watchedState.posts, (obj1, obj2) => (
-          obj1.title === obj2.title))
-          .map((post) => ({
-            ...post,
-            id: uniqueId(),
-          }));
+        const newPosts = differenceWith(
+          posts,
+          watchedState.posts,
+          (obj1, obj2) => obj1.title === obj2.title
+        ).map((post) => ({
+          ...post,
+          id: uniqueId(),
+        }));
 
         watchedState.posts.unshift(...newPosts);
       })
@@ -73,19 +74,18 @@ const fetchNewData = (watchedState: InitialState) => {
 };
 
 export default () => {
-  const elements: Elements = {
-    form: document.querySelector('.rss-form')!,
-    input: document.querySelector('#url-input')!,
-    button: document.querySelector('.rss-form button[type="submit"]')!,
-    feedback: document.querySelector('.feedback')!,
-    posts: document.querySelector('.posts')!,
-    feeds: document.querySelector('.feeds')!,
-    modalHeader: document.querySelector('.modal-title')!,
-    modalText: document.querySelector('.modal-body')!,
-    modalLink: document.querySelector('.full-article')!,
-  };
-
-  const defaultLanguage = 'ru';
+  // type Elements = typeof elements; // TODO: Elements
+  const elements = {
+    form: document.querySelector('.rss-form'),
+    input: document.querySelector('#url-input'),
+    button: document.querySelector('.rss-form button[type="submit"]'),
+    feedback: document.querySelector('.feedback'),
+    posts: document.querySelector('.posts'),
+    feeds: document.querySelector('.feeds'),
+    modalHeader: document.querySelector('.modal-title'),
+    modalText: document.querySelector('.modal-body'),
+    modalLink: document.querySelector('.full-article'),
+  } as const;
 
   const initialState: InitialState = {
     form: {
@@ -104,23 +104,28 @@ export default () => {
     },
   };
 
+  const defaultLanguage = 'ru';
+
   const i18nInstance = i18n.createInstance();
-  i18nInstance.init({
-    lng: defaultLanguage,
-    debug: false,
-    resources,
-  })
+  i18nInstance
+    .init({
+      lng: defaultLanguage,
+      debug: false,
+      resources,
+    })
     .then(() => {
       yup.setLocale(yupLocale);
       const watchedState = watch(initialState, { elements }, i18nInstance);
 
       elements.form?.addEventListener('submit', (e) => {
         e.preventDefault();
-        const newUrl: string | null = new FormData(e.target as HTMLFormElement).get('url') as string | null;
+        const newUrl = new FormData(e.target as HTMLFormElement).get(
+          'url'
+        ) as string; // FIXME: remove as HTMLFormElement
         const data: Data = {
-          url: newUrl ?? '',
+          url: newUrl,
         };
-        const urls = watchedState.feeds.map(({ url }: { url: string }) => url);
+        const urls = watchedState.feeds.map(({ url }) => url);
 
         watchedState.loadingProcess.status = 'receiving';
         watchedState.loadingProcess.error = null;
@@ -129,20 +134,24 @@ export default () => {
         validate(data.url, urls)
           .then(() => {
             const link = getProxyLink(data.url);
-            axios.get(link, { timeout: requestTimeout })
+            axios
+              .get(link, { timeout: requestTimeout })
               .then((response) => {
                 const xmlDoc = parser(response.data.contents);
                 const { feed, posts } = xmlDoc;
 
-                feed.id = parseInt(uniqueId(), 10); // FIXME: string or number type?
-                feed.url = data.url;
+                const feedWithIdAndUrl = {
+                  ...feed,
+                  id: uniqueId(),
+                  url: data.url,
+                };
 
                 const postsWithId = posts.map((post) => ({
                   ...post,
-                  id: uniqueId(), // ?
+                  id: uniqueId(),
                 }));
 
-                watchedState.feeds.unshift(feed);
+                watchedState.feeds.unshift(feedWithIdAndUrl);
                 watchedState.posts.unshift(...postsWithId);
                 watchedState.loadingProcess.status = 'received';
 

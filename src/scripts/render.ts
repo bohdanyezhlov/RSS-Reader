@@ -1,22 +1,19 @@
 import onChange from 'on-change';
 import { last } from 'lodash';
-import { InitialState, Elements } from './types/interfaces';
+import { InitialState } from './types/interfaces';
+import { i18n } from 'i18next';
 
-export default (
-  state: InitialState,
-  { elements }: { elements: Elements },
-  i18nInstance: { t: (arg0: string) => string | null; },
-) => {
+export default (state: InitialState, { elements }: any, i18nInstance: i18n) => {
   const watchVisitedPosts = () => {
     const visitedId = last([...state.ui.posts.visitedIds]);
     const postLink = document.querySelector(`a[data-id="${visitedId}"]`);
     postLink?.classList.remove('fw-bold');
     postLink?.classList.add('fw-normal', 'link-secondary');
 
-    const post = state.posts.find(({ id }) => parseInt(id, 10) === visitedId);
-    elements.modalHeader.textContent = post.title;
-    elements.modalText.textContent = post.description;
-    elements.modalLink.setAttribute('href', post.link);
+    const post = state.posts.find(({ id }) => id === visitedId);
+    elements.modalHeader.textContent = post?.title;
+    elements.modalText.textContent = post?.description;
+    elements.modalLink.setAttribute('href', post?.link);
   };
 
   const renderHeader = (container: HTMLElement, title: string | null) => {
@@ -37,11 +34,18 @@ export default (
     const postsItems = state.posts;
     const items = postsItems.map((post) => {
       const li = document.createElement('li');
-      li.classList.add('list-group-item', 'd-flex', 'justify-content-between', 'align-items-start', 'border-0', 'border-end-0');
+      li.classList.add(
+        'list-group-item',
+        'd-flex',
+        'justify-content-between',
+        'align-items-start',
+        'border-0',
+        'border-end-0'
+      );
 
       const link = document.createElement('a');
       const visitedPosts = state.ui.posts.visitedIds;
-      if (visitedPosts.has(parseInt(post.id, 10))) {
+      if (visitedPosts.has(post.id)) {
         link.classList.add('fw-normal', 'link-secondary');
       } else {
         link.classList.add('fw-bold');
@@ -130,7 +134,7 @@ export default (
     elements.feedback.classList.remove('text-danger');
   };
 
-  const renderError = (value: any) => {
+  const renderError = (value: string | null) => {
     if (value !== null) {
       elements.feedback.textContent = i18nInstance.t(value);
       elements.feedback.classList.add('text-danger');
@@ -139,7 +143,7 @@ export default (
     }
   };
 
-  const handleLoadingProcessStatus = (processStatus: any) => {
+  const handleLoadingProcessStatus = (processStatus: string) => {
     switch (processStatus) {
       case 'receiving':
         elements.input.classList.remove('is-invalid');
@@ -165,18 +169,18 @@ export default (
     }
   };
 
-  const watchedState = onChange(state, (path, value) => {
+  const watchedState = onChange<InitialState>(state, (path, value) => {
     switch (path) {
       case 'form.error':
-        renderError(value);
+        renderError(value as string | null);
         break;
 
       case 'loadingProcess.status':
-        handleLoadingProcessStatus(value);
+        handleLoadingProcessStatus(value as string);
         break;
 
       case 'loadingProcess.error':
-        renderError(value);
+        renderError(value as string | null);
         break;
 
       case 'feeds':

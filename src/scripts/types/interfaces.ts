@@ -1,13 +1,21 @@
-export interface Elements {
-  form: HTMLFormElement;
-  input: HTMLInputElement;
-  button: HTMLButtonElement;
-  feedback: HTMLElement;
-  posts: HTMLElement;
-  feeds: HTMLElement;
-  modalHeader: HTMLElement;
-  modalText: HTMLElement;
-  modalLink: HTMLElement;
+export interface Feed {
+  title: string;
+  description: string;
+}
+
+export interface FeedWithIdAndUrl extends Feed {
+  id: string;
+  url: string;
+}
+
+export interface Post {
+  title: string;
+  description: string;
+  link: string;
+}
+
+export interface PostsWithId extends Post {
+  id: string;
 }
 
 export interface InitialState {
@@ -18,17 +26,17 @@ export interface InitialState {
     status: null | string;
     error: null | string;
   };
-  feeds: any[]; // replace "any" with the actual type of objects stored in the feeds array
-  posts: any[]; // replace "any" with the actual type of objects stored in the posts array
+  feeds: FeedWithIdAndUrl[];
+  posts: PostsWithId[];
   ui: {
     posts: {
-      visitedIds: Set<number>;
+      visitedIds: Set<string>;
     };
   };
 }
 
 export interface Data {
-  url: string
+  url: string;
 }
 
 export interface ParsingError extends Error {

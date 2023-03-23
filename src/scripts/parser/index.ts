@@ -1,25 +1,14 @@
 import { ParsingError } from '../types/interfaces';
 
-export default (data: string): {
-  feed: {
-    id?: number,
-    title: string,
-    description: string,
-    url?: string,
-  },
-  posts: {
-    id?: number,
-    title: string,
-    description: string,
-    link: string,
-  }[]
-} => {
+export default (data: string) => {
   const parser = new DOMParser();
   const xmlDoc = parser.parseFromString(data, 'text/xml');
   const errorNode = xmlDoc.querySelector('parsererror');
 
   if (errorNode) {
-    const error: ParsingError = new Error(errorNode.textContent ?? '') as ParsingError;
+    const error: ParsingError = new Error(
+      errorNode.textContent ?? ''
+    ) as ParsingError;
     error.isParsingError = true;
     throw error;
   }
