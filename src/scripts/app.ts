@@ -18,7 +18,7 @@ const validate = (url: string, urls: string[]) => {
 
 const watchVisitedPost = (watchedState: InitialState, { elements }: any) => {
   elements.posts.addEventListener('click', (e: MouseEvent) => {
-    const visitedId = (e.target as Element)?.getAttribute('data-id');
+    const visitedId = (e.target as HTMLElement)?.getAttribute('data-id');
 
     if (visitedId) {
       watchedState.ui.posts.visitedIds.add(visitedId);

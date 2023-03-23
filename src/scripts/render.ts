@@ -16,7 +16,7 @@ export default (state: InitialState, { elements }: any, i18nInstance: i18n) => {
     elements.modalLink.setAttribute('href', post?.link);
   };
 
-  const renderHeader = (container: HTMLElement, title: string | null) => {
+  const renderHeader = (container: HTMLElement, title: string) => {
     const wrapper = document.createElement('div');
     wrapper.classList.add('card-body');
     container.append(wrapper);
