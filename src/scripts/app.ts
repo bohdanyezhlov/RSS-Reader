@@ -7,7 +7,7 @@ import resources from './locales/index';
 import yupLocale from './locales/yupLocale';
 import watch from './render';
 import parser from './parser/index';
-import { Data, InitialState, ParsingError } from './types/interfaces';
+import { InitialState, ParsingError, Elements } from './types/interfaces';
 
 const validate = (url: string, urls: string[]) => {
   const baseUrlSchema = yup.string().url().required();
@@ -16,8 +16,8 @@ const validate = (url: string, urls: string[]) => {
   return uniqUrlsSchema.validate(url);
 };
 
-const watchVisitedPost = (watchedState: InitialState, { elements }: any) => {
-  elements.posts.addEventListener('click', (e: MouseEvent) => {
+const watchVisitedPost = (watchedState: InitialState, elements: Elements) => {
+  elements.posts?.addEventListener('click', (e: Event) => {
     const visitedId = (e.target as HTMLElement)?.getAttribute('data-id');
 
     if (visitedId) {
@@ -74,8 +74,7 @@ const fetchNewData = (watchedState: InitialState) => {
 };
 
 export default () => {
-  // type Elements = typeof elements; // TODO: Elements
-  const elements = {
+  const elements: Elements = {
     form: document.querySelector('.rss-form'),
     input: document.querySelector('#url-input'),
     button: document.querySelector('.rss-form button[type="submit"]'),
@@ -85,7 +84,7 @@ export default () => {
     modalHeader: document.querySelector('.modal-title'),
     modalText: document.querySelector('.modal-body'),
     modalLink: document.querySelector('.full-article'),
-  } as const;
+  };
 
   const initialState: InitialState = {
     form: {
@@ -104,36 +103,31 @@ export default () => {
     },
   };
 
-  const defaultLanguage = 'ru';
-
   const i18nInstance = i18n.createInstance();
   i18nInstance
     .init({
-      lng: defaultLanguage,
+      fallbackLng: 'en',
       debug: false,
       resources,
     })
     .then(() => {
       yup.setLocale(yupLocale);
-      const watchedState = watch(initialState, { elements }, i18nInstance);
+      const watchedState = watch(initialState, elements, i18nInstance);
 
       elements.form?.addEventListener('submit', (e) => {
         e.preventDefault();
         const newUrl = new FormData(e.target as HTMLFormElement).get(
           'url'
-        ) as string; // FIXME: remove as HTMLFormElement
-        const data: Data = {
-          url: newUrl,
-        };
+        ) as string;
         const urls = watchedState.feeds.map(({ url }) => url);
 
         watchedState.loadingProcess.status = 'receiving';
         watchedState.loadingProcess.error = null;
         watchedState.form.error = null;
 
-        validate(data.url, urls)
+        validate(newUrl, urls)
           .then(() => {
-            const link = getProxyLink(data.url);
+            const link = getProxyLink(newUrl);
             axios
               .get(link, { timeout: requestTimeout })
               .then((response) => {
@@ -143,7 +137,7 @@ export default () => {
                 const feedWithIdAndUrl = {
                   ...feed,
                   id: uniqueId(),
-                  url: data.url,
+                  url: newUrl,
                 };
 
                 const postsWithId = posts.map((post) => ({
@@ -155,7 +149,7 @@ export default () => {
                 watchedState.posts.unshift(...postsWithId);
                 watchedState.loadingProcess.status = 'received';
 
-                watchVisitedPost(watchedState, { elements });
+                watchVisitedPost(watchedState, elements);
                 fetchNewData(watchedState);
               })
               .catch((error) => {

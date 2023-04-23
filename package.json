@@ -1,5 +1,5 @@
 {
-  "name": "@hexlet/code",
+  "name": "rss-reader",
   "version": "1.0.0",
   "description": "RSS Reader",
   "main": "./src/index.ts",
@@ -9,18 +9,17 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Bohdan2241/frontend-project-11.git"
+    "url": "git+https://github.com/bohdanyezhlov/frontend-project-11.git"
   },
   "keywords": [],
-  "author": "Bohdan2241",
+  "author": "Bohdan Yezhlov",
   "license": "ISC",
   "bugs": {
-    "url": "https://github.com/Bohdan2241/frontend-project-11/issues"
+    "url": "https://github.com/bohdanyezhlov/frontend-project-11/issues"
   },
-  "homepage": "https://github.com/Bohdan2241/frontend-project-11#readme",
+  "homepage": "https://github.com/bohdanyezhlov/frontend-project-11#readme",
   "devDependencies": {
     "@types/lodash": "^4.14.191",
-    "@typescript-eslint/eslint-plugin": "^5.56.0",
     "@typescript-eslint/parser": "^5.56.0",
     "css-loader": "^6.7.1",
     "eslint": "^8.23.0",

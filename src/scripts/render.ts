@@ -1,9 +1,13 @@
 import onChange from 'on-change';
 import { last } from 'lodash';
-import { InitialState } from './types/interfaces';
+import { InitialState, Elements } from './types/interfaces';
 import { i18n } from 'i18next';
 
-export default (state: InitialState, { elements }: any, i18nInstance: i18n) => {
+export default (
+  state: InitialState,
+  elements: Elements,
+  i18nInstance: i18n
+) => {
   const watchVisitedPosts = () => {
     const visitedId = last([...state.ui.posts.visitedIds]);
     const postLink = document.querySelector(`a[data-id="${visitedId}"]`);
@@ -11,9 +15,13 @@ export default (state: InitialState, { elements }: any, i18nInstance: i18n) => {
     postLink?.classList.add('fw-normal', 'link-secondary');
 
     const post = state.posts.find(({ id }) => id === visitedId);
-    elements.modalHeader.textContent = post?.title;
-    elements.modalText.textContent = post?.description;
-    elements.modalLink.setAttribute('href', post?.link);
+    if (elements.modalHeader) {
+      elements.modalHeader.textContent = post?.title ?? null;
+    }
+    if (elements.modalText) {
+      elements.modalText.textContent = post?.description ?? null;
+    }
+    elements.modalLink?.setAttribute('href', post?.link ?? '#');
   };
 
   const renderHeader = (container: HTMLElement, title: string) => {
@@ -75,11 +83,14 @@ export default (state: InitialState, { elements }: any, i18nInstance: i18n) => {
 
   const renderPosts = () => {
     const container = elements.posts;
+    if (!container) {
+      return;
+    }
     container.innerHTML = '';
 
     const wrapper = document.createElement('div');
     wrapper.classList.add('card', 'border-0');
-    container.append(wrapper);
+    container?.append(wrapper);
 
     const title = i18nInstance.t('posts');
     renderHeader(wrapper, title);
@@ -114,6 +125,7 @@ export default (state: InitialState, { elements }: any, i18nInstance: i18n) => {
 
   const renderFeeds = () => {
     const container = elements.feeds;
+    if (!container) return;
     container.innerHTML = '';
 
     const wrapper = document.createElement('div');
@@ -126,42 +138,60 @@ export default (state: InitialState, { elements }: any, i18nInstance: i18n) => {
   };
 
   const renderSuccess = () => {
-    elements.form.reset();
-    elements.input.focus();
-    elements.input.classList.remove('is-invalid');
-    elements.feedback.textContent = i18nInstance.t('loadingSuccess');
-    elements.feedback.classList.add('text-success');
-    elements.feedback.classList.remove('text-danger');
+    elements.form?.reset();
+    elements.input?.focus();
+    elements.input?.classList.remove('is-invalid');
+    if (elements.feedback) {
+      elements.feedback.textContent = i18nInstance.t('loadingSuccess');
+      elements.feedback.classList.add('text-success');
+      elements.feedback.classList.remove('text-danger');
+    }
   };
 
   const renderError = (value: string | null) => {
     if (value !== null) {
-      elements.feedback.textContent = i18nInstance.t(value);
-      elements.feedback.classList.add('text-danger');
-      elements.feedback.classList.remove('text-success');
-      elements.input.classList.add('is-invalid');
+      if (elements.feedback) {
+        elements.feedback.textContent = i18nInstance.t(value);
+        elements.feedback.classList.add('text-danger');
+        elements.feedback.classList.remove('text-success');
+      }
+      elements.input?.classList.add('is-invalid');
     }
   };
 
   const handleLoadingProcessStatus = (processStatus: string) => {
     switch (processStatus) {
       case 'receiving':
-        elements.input.classList.remove('is-invalid');
-        elements.feedback.textContent = '';
-        elements.input.readOnly = true;
-        elements.button.disabled = true;
+        if (elements.input) {
+          elements.input.classList.remove('is-invalid');
+          elements.input.readOnly = true;
+        }
+        if (elements.feedback) {
+          elements.feedback.textContent = '';
+        }
+        if (elements.button) {
+          elements.button.disabled = true;
+        }
         break;
 
       case 'failed':
         renderError(processStatus);
-        elements.input.readOnly = false;
-        elements.button.disabled = false;
+        if (elements.input) {
+          elements.input.readOnly = false;
+        }
+        if (elements.button) {
+          elements.button.disabled = false;
+        }
         break;
 
       case 'received':
         renderSuccess();
-        elements.input.readOnly = false;
-        elements.button.disabled = false;
+        if (elements.input) {
+          elements.input.readOnly = false;
+        }
+        if (elements.button) {
+          elements.button.disabled = false;
+        }
         break;
 
       default:

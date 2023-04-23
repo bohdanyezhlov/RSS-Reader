@@ -35,10 +35,18 @@ export interface InitialState {
   };
 }
 
-export interface Data {
-  url: string;
-}
-
 export interface ParsingError extends Error {
   isParsingError: boolean;
+}
+
+export interface Elements {
+  form: HTMLFormElement | null;
+  input: HTMLInputElement | null;
+  button: HTMLButtonElement | null;
+  feedback: HTMLElement | null;
+  posts: HTMLElement | null;
+  feeds: HTMLElement | null;
+  modalHeader: HTMLElement | null;
+  modalText: HTMLElement | null;
+  modalLink: HTMLAnchorElement | null;
 }

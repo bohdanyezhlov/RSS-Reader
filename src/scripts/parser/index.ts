@@ -6,7 +6,7 @@ export default (data: string) => {
   const errorNode = xmlDoc.querySelector('parsererror');
 
   if (errorNode) {
-    const error: ParsingError = new Error(
+    const error = new Error(
       errorNode.textContent ?? ''
     ) as ParsingError;
     error.isParsingError = true;
